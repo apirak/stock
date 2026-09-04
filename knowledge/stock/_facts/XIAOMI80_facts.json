@@ -1,0 +1,38 @@
+{
+ "ticker": "XIAOMI80",
+ "tier": "watch",
+ "fetched_at": "2026-09-03 06:35:11",
+ "yahoo": {
+  "symbol": "XIAOMI80.BK",
+  "name": "XIAOMI80_DR XIAOMI#KTB",
+  "exchange": "Thailand",
+  "currency": "THB",
+  "instrument_type": "EQUITY",
+  "price": 11.9,
+  "price_time_utc": "2026-09-02 09:37",
+  "last_closes": [
+   [
+    "2026-08-27",
+    11.6
+   ],
+   [
+    "2026-08-28",
+    11.7
+   ],
+   [
+    "2026-08-31",
+    11.6
+   ],
+   [
+    "2026-09-01",
+    11.7
+   ],
+   [
+    "2026-09-02",
+    11.9
+   ]
+  ]
+ },
+ "fmp": {},
+ "fmp_note": "Thai SET listing — no FMP coverage; use Yahoo + web_search"
+}

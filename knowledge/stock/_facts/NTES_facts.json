@@ -1,0 +1,91 @@
+{
+ "ticker": "NTES",
+ "tier": "watch",
+ "fetched_at": "2026-09-03 06:34:55",
+ "yahoo": {
+  "symbol": "NTES",
+  "name": "NetEase, Inc.",
+  "exchange": "NasdaqGS",
+  "currency": "USD",
+  "instrument_type": "EQUITY",
+  "price": 119.465,
+  "price_time_utc": "2026-09-02 20:00",
+  "last_closes": [
+   [
+    "2026-08-27",
+    122.69
+   ],
+   [
+    "2026-08-28",
+    122.76
+   ],
+   [
+    "2026-08-31",
+    121.78
+   ],
+   [
+    "2026-09-01",
+    120.07
+   ],
+   [
+    "2026-09-02",
+    119.465
+   ]
+  ]
+ },
+ "fmp": {
+  "profile": [
+   {
+    "symbol": "NTES",
+    "price": 119.465,
+    "marketCap": 76269004666,
+    "beta": 0.8,
+    "lastDividend": 3.02,
+    "range": "106.06-159.55",
+    "change": -0.605,
+    "changePercentage": -0.50387,
+    "volume": 435251,
+    "averageVolume": 962434,
+    "companyName": "NetEase, Inc.",
+    "currency": "USD",
+    "cik": "0001110646",
+    "isin": "US64110W1027",
+    "cusip": "64110W102",
+    "exchangeFullName": "NASDAQ Global Select",
+    "exchange": "NASDAQ",
+    "industry": "Electronic Gaming & Multimedia",
+    "website": "https://ir.netease.com",
+    "description": "NetEase, Inc., a prominent technology firm founded in 1997 and headquartered in Hangzhou, People's Republic of China, delivers a broad spectrum of online services both within China and across international markets. Its core operations encompass online gaming, music streaming, intelligent online learning solutions, and diverse internet content services. The company organizes its activities into several key divisions: Games and Related Value-Added Services; Youdao, focusing on educational technology; Cloud Music for its audio streaming offerings; and a segment for Innovative Businesses and Others. Within its gaming division, NetEase is responsible for creating and managing both PC and mobile games, and it also publishes titles licensed from external game developers. The Youdao segment provides a comprehensive suite of online learning and translation tools, including Youdao Dictionary, Youdao Translation, U-Dictionary, and Youdao Kids' Dictionary. It also manufactures smart devices like the Youdao Dictionary Pen, Smart Learning Pad, and Listening Pod. Furthermore, Youdao offers online courses, interactive educational applications, and advanced digitalization solutions for education, such as the Youdao Smart Learning Terminal for automated homework processing, Youdao Smart Cloud (a platform offering OCR capabilities to third parties), and Youdao Sports, a sports-focused educational system. Beyond these, NetEase manages an array of other popular internet services. These include NetEase Cloud Music, a significant music streaming platform; Yanxuan, an e-commerce platform specializing in private label products; the www.163.com portal and its companion mobile app, Wangyi Xinwen, which deliver news, sports, technology, fashion, and entertainment content; NetEase Mail, an email service; NetEase CC Live, a live streaming platform primarily dedicated to game broadcasting; and NetEase Pay, a secure payment system. The company, originally known as NetEase.com, Inc., officially adopted its current name, NetEase, Inc., in March 2012.",
+    "ceo": "Lei Ding",
+    "sector": "Technology",
+    "country": "CN",
+    "fullTimeEmployees": "25382",
+    "phone": "86 57 1898 53378",
+    "address": "NetEase Building",
+    "city": "Hangzhou",
+    "state": "ZH",
+    "zip": "310052",
+    "image": "https://images.financialmodelingprep.com/symbol/NTES.png",
+    "ipoDate": "2000-06-30",
+    "defaultImage": false,
+    "isEtf": false,
+    "isActivelyTrading": true,
+    "isAdr": true,
+    "isFund": false
+   }
+  ],
+  "quote": {
+   "error": "HTTP Error 402: Payment Required"
+  },
+  "key_metrics": {
+   "error": "HTTP Error 402: Payment Required"
+  },
+  "price_target_consensus": {
+   "error": "HTTP Error 402: Payment Required"
+  },
+  "dcf": {
+   "error": "HTTP Error 402: Payment Required"
+  }
+ },
+ "fmp_calls_used": 1
+}

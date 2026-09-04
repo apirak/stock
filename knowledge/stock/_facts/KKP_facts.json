@@ -1,0 +1,38 @@
+{
+ "ticker": "KKP",
+ "tier": "watch",
+ "fetched_at": "2026-09-03 06:27:35",
+ "yahoo": {
+  "symbol": "KKP.BK",
+  "name": "KKP_KIATNAKIN PHATRA BANK",
+  "exchange": "Thailand",
+  "currency": "THB",
+  "instrument_type": "EQUITY",
+  "price": 116.5,
+  "price_time_utc": "2026-09-02 09:37",
+  "last_closes": [
+   [
+    "2026-08-27",
+    117.5
+   ],
+   [
+    "2026-08-28",
+    119.0
+   ],
+   [
+    "2026-08-31",
+    116.0
+   ],
+   [
+    "2026-09-01",
+    117.5
+   ],
+   [
+    "2026-09-02",
+    116.5
+   ]
+  ]
+ },
+ "fmp": {},
+ "fmp_note": "Thai SET listing — no FMP coverage; use Yahoo + web_search"
+}
