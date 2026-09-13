@@ -1,0 +1,121 @@
+name: Fallen Angel Tracker
+
+# Daily job: Tue-Sat 00:00 UTC = 07:00 Bangkok (covers Mon-Fri US close).
+# Weekly job: Mon 00:00 UTC = 07:00 Bangkok (weekend digest + mini-lesson).
+#
+# Storage is local files only (data/daily_log.csv + reports/*.md). Because each
+# CI run starts from a fresh checkout, the jobs COMMIT those files back to the
+# repo after every run — the repository itself is the database. On your Mac,
+# nothing extra is needed: the files just stay on disk.
+on:
+  schedule:
+    - cron: "0 0 * * 2-6"
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Pipeline to run manually"
+        type: choice
+        options: [daily, weekly]
+        default: daily
+      tickers:
+        description: "Optional comma-separated tickers (daily mode only)"
+        required: false
+        default: ""
+
+concurrency:
+  group: fallen-angel-tracker
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    if: >-
+      github.event.schedule == '0 0 * * 2-6' ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'daily')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily pipeline
+        env:
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          WATCHLIST: ${{ secrets.WATCHLIST }}
+          FAIR_VALUE_OVERRIDES: ${{ secrets.FAIR_VALUE_OVERRIDES }}
+        run: python main.py --mode daily --tickers "${{ inputs.tickers }}"
+
+      - name: Commit log & reports (repo = database)
+        run: |
+          git config user.name "fallen-angel-bot"
+          git config user.email "actions@github.com"
+          git add fallen_angel_tracker/data fallen_angel_tracker/reports
+          git diff --cached --quiet || git commit -m "chore: tracker daily log [skip ci]"
+          git push
+
+      - name: Upload log & reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracker-output-${{ github.run_id }}
+          path: |
+            fallen_angel_tracker/data/
+            fallen_angel_tracker/reports/
+          if-no-files-found: ignore
+
+  weekly:
+    if: >-
+      github.event.schedule == '0 0 * * 1' ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'weekly')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run weekly digest
+        env:
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python main.py --mode weekly
+
+      - name: Commit log & reports (repo = database)
+        run: |
+          git config user.name "fallen-angel-bot"
+          git config user.email "actions@github.com"
+          git add fallen_angel_tracker/data fallen_angel_tracker/reports
+          git diff --cached --quiet || git commit -m "chore: tracker weekly digest [skip ci]"
+          git push

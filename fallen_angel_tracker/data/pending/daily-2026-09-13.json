@@ -1,0 +1,96 @@
+{
+  "date": "2026-09-13",
+  "tickers": [
+    {
+      "ticker": "UNH",
+      "company": "UnitedHealth Group Incorporated",
+      "price": 379.09,
+      "fair_value": 475.23077,
+      "fair_value_source": "analyst_target_mean",
+      "discount_pct": 20.23,
+      "gross_margin_pct": 18.53,
+      "operating_margin_pct": 4.24,
+      "gross_margin_history_pct": [
+        18.53,
+        22.33,
+        24.48,
+        24.56
+      ],
+      "operating_margin_history_pct": [
+        4.24,
+        8.07,
+        8.71,
+        8.77
+      ],
+      "roic_pct": 11.45,
+      "wacc_pct": 6.77,
+      "net_debt_to_ebitda": 1.8840373344544203,
+      "interest_coverage": 4.738630684657672,
+      "interest_expense_negligible": false,
+      "fcf_yield_pct": 4.72,
+      "return_1m_pct": -6.53,
+      "return_6m_pct": 37.61,
+      "recent_news_headlines": [
+        "Five Dividend Stocks Crushing Inflation With Consistent Dividend Payout Growth",
+        "Dear UnitedHealth Stock Fans, Mark Your Calendars for October 1",
+        "3 Profitable Stocks to Keep an Eye On",
+        "UnitedHealth Group (UNH) Stock Drops Despite Market Gains: Important Facts to Note",
+        "Can Centene's Medicare Advantage Strategy Unlock Better Margins?",
+        "Should You Buy Elevance Health Stock For The Margin It Lost?"
+      ],
+      "data_warnings": [],
+      "rule_based_verdict": "Watch",
+      "rule_based_action": "Wait for Next Earnings",
+      "rule_based_flags": [
+        "Interest coverage 4.7x < 5x",
+        "discount 20% but flags present"
+      ],
+      "task": "Run the Moat Impairment Test on this company: classify headwinds as 'Transitory / Surface-level' vs 'Structural Damage', give a verdict (Pass - Temporary | Watch | Fail - Value Trap), and draft the strategic entry plan. Use only the facts in this file; do not invent numbers."
+    },
+    {
+      "ticker": "TGT",
+      "company": "Target Corporation",
+      "price": 155.83,
+      "fair_value": 162.76471,
+      "fair_value_source": "analyst_target_mean",
+      "discount_pct": 4.26,
+      "gross_margin_pct": 27.93,
+      "operating_margin_pct": 4.88,
+      "gross_margin_history_pct": [
+        27.93,
+        28.21,
+        27.54,
+        24.57
+      ],
+      "operating_margin_history_pct": [
+        4.88,
+        5.22,
+        5.31,
+        3.53
+      ],
+      "roic_pct": 13.43,
+      "wacc_pct": 7.48,
+      "net_debt_to_ebitda": 1.5662747932397174,
+      "interest_coverage": 11.498876404494382,
+      "interest_expense_negligible": false,
+      "fcf_yield_pct": 4.0,
+      "return_1m_pct": 1.19,
+      "return_6m_pct": 36.94,
+      "recent_news_headlines": [
+        "Ulta Beauty Sees Resilient Demand, Eyes Fragrance, Wellness Growth After Target Exit",
+        "Jim Cramer Says a 25% Surtax Just Got Added to Everything You Buy. Congress Never Voted on It.",
+        "The Dividend Streak Lives, But Target’s Raise Size Tells the Real Story",
+        "Meet the Value Stock That's Crushing the S&P 500. Here's Why It's Still a Great Buy in September.",
+        "Jim Cramer Highlights Affirm (AFRM) and Its Strong Merchant Network",
+        "Walmart and Target’s Shelves are Becoming a Battleground for Budget-Conscious Shoppers"
+      ],
+      "data_warnings": [],
+      "rule_based_verdict": "Watch",
+      "rule_based_action": "Wait for Next Earnings",
+      "rule_based_flags": [
+        "insufficient edge on current numbers"
+      ],
+      "task": "Run the Moat Impairment Test on this company: classify headwinds as 'Transitory / Surface-level' vs 'Structural Damage', give a verdict (Pass - Temporary | Watch | Fail - Value Trap), and draft the strategic entry plan. Use only the facts in this file; do not invent numbers."
+    }
+  ]
+}

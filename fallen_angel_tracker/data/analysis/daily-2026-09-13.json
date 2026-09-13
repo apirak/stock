@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-13",
+  "tickers": [
+    {
+      "ticker": "UNH",
+      "verdict": "Pass - Temporary",
+      "headwind_category": "Transitory / Surface-level",
+      "moat_sources": ["Switching Costs", "Network Effect", "Intangible Assets"],
+      "core_headwinds": "Medical loss ratio pressure from elevated Medicare Advantage utilization and DOJ antitrust overhang; near-term catalyst is the next quarterly MLR disclosure.",
+      "deep_dive": "UnitedHealth's fortress rests on Optum's vertical integration: providers, PBM and data analytics create switching costs no competitor replicates, while the insurance network effect concentrates risk-bearing scale. The utilization spike is an industry-wide cost cycle, not customers leaving — plan sponsors have nowhere else to go for integrated care at scale. The market prices UNH like a structurally broken HMO while ROIC (11.5%) still clears WACC (6.8%) comfortably and leverage stays modest at 1.9x. Overreaction, not re-rating.",
+      "tranche_plan": "Tranche 1: 25-30% of intended full position at current levels. Tranche 2: 30% if next earnings shows MLR stabilizing quarter-over-quarter. Tranche 3: remainder only after DOJ overhang clears or the stock reclaims long-term support with improving margins.",
+      "invalidation_criteria": [
+        "MLR deteriorates for 2 consecutive quarters beyond management guidance",
+        "DOJ action results in structural remedy forcing Optum divestiture",
+        "Net Debt/EBITDA rises above 4.0x from buybacks or settlements"
+      ],
+      "suggested_position_cap_pct": 6
+    }
+  ]
+}

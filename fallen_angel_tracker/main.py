@@ -1,0 +1,412 @@
+"""
+Entrypoint for the Fallen Angel / Quality Value Investing Tracker.
+
+Hybrid architecture (default — zero LLM API cost):
+  1. `--mode daily` / `--mode weekly` : Python collects market data, runs the
+     deterministic screen, logs to CSV/MD and writes a PENDING file under
+     data/pending/.
+  2. A ZCode automation session reads the pending file, performs the Moat
+     Impairment Test with its own model, and writes an analysis JSON under
+     data/analysis/.
+  3. `--mode finalize` merges the analysis into the CSV and regenerates the
+     Markdown report (and for weekly: renders the email and sends it).
+
+Optional `--use-api-llm` runs the analysis inline via a paid LLM API instead
+(config.LLM_PROVIDER + key) — one command, no ZCode step needed.
+
+Usage:
+    python main.py --mode daily  [--tickers UNH,TGT] [--dry-run] [--use-api-llm]
+    python main.py --mode weekly [--dry-run] [--use-api-llm]
+    python main.py --mode finalize [--weekly] [--date YYYY-MM-DD]
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime, timezone
+
+import analyzer
+import config
+import data_fetcher
+import storage
+from mailer import build_weekly_email, send_email
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _week_label() -> str:
+    iso = datetime.now(timezone.utc).isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_tickers(args_tickers: str | None) -> list[str]:
+    if args_tickers:
+        return [t.strip().upper() for t in args_tickers.split(",") if t.strip()]
+    if config.DAILY_INPUT_FILE.exists():
+        lines = [
+            line.strip().upper()
+            for line in config.DAILY_INPUT_FILE.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if lines:
+            return lines
+    return list(config.WATCHLIST)
+
+
+def _print_row_summary(row: dict) -> None:
+    print(
+        f"  {row['Ticker']:<6} price=${row['Market Price ($)'] or 'n/a':<9}"
+        f" discount={row['Discount (%)'] or 'n/a'}%"
+        f" | {row['Moat Impairment Verdict']:<18}"
+        f" | {row['Strategic Action']}"
+    )
+
+
+def _write_json(path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# daily pipeline:  collect -> (harness analyzes) -> finalize
+# ---------------------------------------------------------------------------
+
+def run_daily(args: argparse.Namespace) -> int:
+    today = _today()
+    use_api = args.use_api_llm and config.llm_ready()
+    tickers = _resolve_tickers(args.tickers)
+    mode_note = "with inline API LLM" if use_api else "rule-based (no LLM cost)"
+    print(f"[daily] analyzing {len(tickers)} ticker(s) {mode_note}: {', '.join(tickers)}")
+
+    rows: list[dict] = []
+    pending: list[dict] = []
+    failures = 0
+    for ticker in tickers:
+        try:
+            snap = data_fetcher.fetch_snapshot(
+                ticker, fair_value_override=config.FAIR_VALUE_OVERRIDES.get(ticker)
+            )
+            row = analyzer.analyze_ticker(snap, use_llm=use_api)
+            rows.append(row)
+            if not use_api:
+                pending.append(analyzer.pending_entry(snap, row))
+            _print_row_summary(row)
+        except Exception as exc:  # noqa: BLE001 - one bad ticker must not kill the run
+            failures += 1
+            print(f"  {ticker:<6} FAILED: {exc}")
+
+    if not rows:
+        print("[daily] no rows produced")
+        return 1
+
+    if args.dry_run:
+        import csv
+        import io
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=analyzer.COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+        print("\n--- dry run: rows that would be logged ---")
+        print(buffer.getvalue())
+        return 0
+
+    print("[daily] " + storage.append_daily_rows(rows))
+    report_path = storage.write_daily_report(rows)
+    print(f"[daily] markdown report: {report_path.relative_to(config.BASE_DIR)}")
+
+    if pending:
+        pending_path = config.PENDING_DIR / f"daily-{today}.json"
+        _write_json(pending_path, {"date": today, "tickers": pending})
+        print(
+            f"[daily] pending analysis file: {pending_path.relative_to(config.BASE_DIR)}\n"
+            f"[daily] next step (ZCode harness): analyze it and write "
+            f"data/analysis/daily-{today}.json, then run: python main.py --mode finalize"
+        )
+    return 1 if failures and not rows else 0
+
+
+# ---------------------------------------------------------------------------
+# finalize: merge the harness analysis into CSV + reports
+# ---------------------------------------------------------------------------
+
+def _finalize_daily(args: argparse.Namespace) -> int:
+    date = args.date or _today()
+    pending_path = config.PENDING_DIR / f"daily-{date}.json"
+    analysis_path = config.ANALYSIS_DIR / f"daily-{date}.json"
+    if not pending_path.exists():
+        print(f"[finalize] no pending file: {pending_path.relative_to(config.BASE_DIR)}")
+        return 1
+    if not analysis_path.exists():
+        print(
+            f"[finalize] no analysis file yet: {analysis_path.relative_to(config.BASE_DIR)}\n"
+            "[finalize] run the ZCode analysis step first, or re-run finalize afterwards."
+        )
+        return 1
+
+    analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+    rows_by_ticker = {r["Ticker"]: r for r in storage.rows_for_date(date)}
+
+    updates: dict[str, dict] = {}
+    for item in analysis.get("tickers", []):
+        ticker = str(item.get("ticker", "")).upper()
+        row = rows_by_ticker.get(ticker)
+        if not row:
+            print(f"[finalize] skipping {ticker or '?'}: no row logged on {date}")
+            continue
+        upd: dict[str, str] = {}
+        verdict = item.get("verdict")
+        if verdict in analyzer.VALID_VERDICTS:
+            upd["Moat Impairment Verdict"] = verdict
+            upd["Strategic Action"] = analyzer.action_from_row(verdict, row)
+        if item.get("headwind_category"):
+            upd["Headwind Category"] = str(item["headwind_category"])
+        if item.get("moat_sources"):
+            srcs = item["moat_sources"]
+            upd["Moat Sources"] = ", ".join(srcs) if isinstance(srcs, list) else str(srcs)
+        if item.get("core_headwinds"):
+            upd["Core Headwinds / Catalyst"] = str(item["core_headwinds"])
+        if item.get("deep_dive"):
+            upd["Deep-Dive"] = str(item["deep_dive"])
+        if item.get("tranche_plan"):
+            upd["Tranche Plan"] = str(item["tranche_plan"])
+        if item.get("invalidation_criteria"):
+            crit = item["invalidation_criteria"]
+            upd["Invalidation Criteria"] = (
+                " | ".join(crit) if isinstance(crit, list) else str(crit)
+            )
+        try:
+            cap = float(item.get("suggested_position_cap_pct"))
+            upd["Suggested Position Cap (%)"] = min(
+                max(cap, config.POSITION_CAP_MIN), config.POSITION_CAP_MAX
+            )
+        except (TypeError, ValueError):
+            pass
+        if upd:
+            updates[ticker] = upd
+
+    if not updates:
+        print("[finalize] analysis file contained no usable entries; CSV unchanged")
+        return 1
+
+    changed = storage.update_rows_for_date(date, updates)
+    rows = storage.rows_for_date(date)
+    report_path = storage.write_daily_report(rows)
+    print(f"[finalize] merged {changed} row(s) for {date}")
+    for row in rows:
+        _print_row_summary(row)
+    print(f"[finalize] markdown report regenerated: {report_path.relative_to(config.BASE_DIR)}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# weekly pipeline:  build -> (harness narrates) -> finalize
+# ---------------------------------------------------------------------------
+
+def _deterioration_flag(latest: dict) -> str:
+    verdict = str(latest.get("Moat Impairment Verdict", ""))
+    if "Fail" in verdict:
+        return "⚠ Verdict FAIL — value trap risk"
+    leverage = storage.to_float(latest.get("Net Debt / EBITDA"))
+    coverage = storage.to_float(latest.get("Interest Coverage Ratio"))
+    if leverage is not None and leverage > config.MAX_NET_DEBT_EBITDA:
+        return f"⚠ Leverage {leverage:.1f}x above {config.MAX_NET_DEBT_EBITDA:.0f}x"
+    if coverage is not None and coverage < config.MIN_INTEREST_COVERAGE:
+        return f"⚠ Coverage {coverage:.1f}x below {config.MIN_INTEREST_COVERAGE:.0f}x"
+    if "Watch" in verdict:
+        return "△ Watch — fundamentals softening"
+    return ""
+
+
+def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
+    """Return (tracking_rows, notes). Anchor = first actionable row per ticker."""
+    firsts = storage.first_recommendation_by_ticker(all_rows)
+    latest_by_ticker = storage.dedupe_latest_by_ticker(all_rows)
+    tracking: list[dict] = []
+    notes: list[str] = []
+    for ticker, first in sorted(firsts.items()):
+        try:
+            stats = data_fetcher.fetch_price_stats(ticker)
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"{ticker}: price fetch failed ({exc})")
+            continue
+        latest = latest_by_ticker.get(ticker, first)
+        rec_price = storage.to_float(first.get("Market Price ($)"))
+        price = stats["price"] or rec_price
+        return_pct = (price / rec_price - 1) * 100 if price and rec_price else None
+        tracking.append({
+            "ticker": ticker,
+            "company": first.get("Company Name", ticker),
+            "rec_date": str(first.get("Date", ""))[:10],
+            "rec_price": rec_price if rec_price is not None else "n/a",
+            "price": round(price, 2) if price else "n/a",
+            "return_pct": return_pct,
+            "return_1m": stats["return_1m"] * 100 if stats["return_1m"] is not None else None,
+            "return_3m": stats["return_3m"] * 100 if stats["return_3m"] is not None else None,
+            "return_6m": stats["return_6m"] * 100 if stats["return_6m"] is not None else None,
+            "latest_verdict": latest.get("Moat Impairment Verdict", "n/a"),
+            "flag": _deterioration_flag(latest),
+        })
+    return tracking, notes
+
+
+def _build_digest(payload: dict, analysis: dict) -> dict:
+    """Assemble the weekly digest payload; harness analysis overrides fallbacks."""
+    pick_analysis = {
+        str(p.get("ticker", "")).upper(): p for p in analysis.get("picks", [])
+    }
+    picks_payload = []
+    for row in payload["picks"]:
+        a = pick_analysis.get(row["Ticker"], {})
+        invalidation = a.get("invalidation_criteria")
+        picks_payload.append({
+            "row": row,
+            "narrative": {
+                "why_moat_intact": a.get("why_moat_intact") or row.get("Deep-Dive", ""),
+                "market_overreaction": a.get("market_overreaction")
+                or row.get("Core Headwinds / Catalyst", ""),
+                "tranche_strategy": a.get("tranche_strategy")
+                or row.get("Tranche Plan", "") or analyzer.fallback_tranche_plan(),
+                "invalidation_criteria": (
+                    invalidation if isinstance(invalidation, list) and invalidation
+                    else [c for c in str(row.get("Invalidation Criteria", "")).split(" | ") if c]
+                ),
+            },
+        })
+    lesson = analysis.get("lesson") or payload["lesson"]
+    return {
+        "date_str": payload["date_str"],
+        "picks": picks_payload,
+        "tracking": payload["tracking"],
+        "lesson": lesson,
+        "notes": payload.get("notes", []),
+    }
+
+
+def run_weekly(args: argparse.Namespace) -> int:
+    today = _today()
+    week = _week_label()
+    use_api = args.use_api_llm and config.llm_ready()
+    print(f"[weekly] building digest for {today} ({week})")
+
+    all_rows = storage.read_log_rows()
+    print(f"[weekly] loaded {len(all_rows)} historical row(s)")
+
+    recent = storage.rows_since(all_rows, config.LOOKBACK_DAYS_FOR_WEEKLY)
+    print(f"[weekly] {len(recent)} row(s) in the last {config.LOOKBACK_DAYS_FOR_WEEKLY} days")
+
+    picks = analyzer.select_top_picks(recent, limit=2)
+    tracking, notes = ([], [])
+    if all_rows:
+        tracking, notes = build_tracking(all_rows)
+
+    if use_api:
+        pick_payloads = [
+            {"row": pick, "narrative": analyzer.generate_pick_narrative(pick, use_llm=True)}
+            for pick in picks
+        ]
+        lesson = analyzer.generate_mini_lesson(use_llm=True)
+        digest = {
+            "date_str": today, "picks": pick_payloads, "tracking": tracking,
+            "lesson": lesson, "notes": notes,
+        }
+        subject, html_body = build_weekly_email(digest)
+        storage.write_weekly_report(digest)
+        sent = send_email(subject, html_body)
+        if not sent and config.smtp_ready():
+            return 1
+        print("[weekly] inline API-LLM digest rendered and delivered")
+        return 0
+
+    payload = {
+        "week": week,
+        "date_str": today,
+        "picks": picks,
+        "tracking": tracking,
+        "lesson": analyzer.generate_mini_lesson(use_llm=False),  # seed topic for the harness
+        "notes": notes,
+    }
+    digest = _build_digest(payload, {})
+    report_path = storage.write_weekly_report(digest)
+    pending_path = config.PENDING_DIR / f"weekly-{week}.json"
+    _write_json(pending_path, payload)
+    for pick in picks:
+        print(f"  candidate: {pick['Ticker']} ({pick['Moat Impairment Verdict']})")
+    print(f"[weekly] markdown digest (fallback text): {report_path.relative_to(config.BASE_DIR)}")
+    print(
+        f"[weekly] pending narrative file: {pending_path.relative_to(config.BASE_DIR)}\n"
+        f"[weekly] next step (ZCode harness): write data/analysis/weekly-{week}.json, "
+        f"then run: python main.py --mode finalize --weekly"
+    )
+    return 0
+
+
+def _finalize_weekly(args: argparse.Namespace) -> int:
+    week = _week_label()
+    pending_path = config.PENDING_DIR / f"weekly-{week}.json"
+    analysis_path = config.ANALYSIS_DIR / f"weekly-{week}.json"
+    if not pending_path.exists():
+        print(f"[finalize] no pending file: {pending_path.relative_to(config.BASE_DIR)} — run --mode weekly first")
+        return 1
+    payload = json.loads(pending_path.read_text(encoding="utf-8"))
+    analysis = {}
+    if analysis_path.exists():
+        analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+    else:
+        print(
+            f"[finalize] note: no analysis file ({analysis_path.relative_to(config.BASE_DIR)}); "
+            "rendering with fallback text"
+        )
+
+    digest = _build_digest(payload, analysis)
+    md_path = storage.write_weekly_report(digest)
+    subject, html_body = build_weekly_email(digest)
+
+    if args.dry_run:
+        config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        out_path = config.OUTPUT_DIR / f"weekly_preview_{digest['date_str']}.html"
+        out_path.write_text(html_body, encoding="utf-8")
+        print(f"[finalize] dry run: email preview written to {out_path}")
+        print(f"[finalize] subject would be: {subject}")
+        return 0
+
+    print(f"[finalize] markdown digest: {md_path.relative_to(config.BASE_DIR)}")
+    sent = send_email(subject, html_body)
+    if not sent and config.smtp_ready():
+        print("[finalize] ERROR: email configured but sending failed")
+        return 1
+    return 0
+
+
+def run_finalize(args: argparse.Namespace) -> int:
+    return _finalize_weekly(args) if args.weekly else _finalize_daily(args)
+
+
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Fallen Angel / Quality Value Investing Tracker")
+    parser.add_argument("--mode", choices=["daily", "weekly", "finalize"], required=True)
+    parser.add_argument("--tickers", default="",
+                        help="comma-separated tickers, overrides WATCHLIST (daily mode)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="do not write any files or send email; print instead")
+    parser.add_argument("--use-api-llm", action="store_true",
+                        help="run the narrative analysis inline via the configured LLM API "
+                             "(default: write a pending file for the ZCode harness)")
+    parser.add_argument("--date", default="", help="finalize daily rows of this date (YYYY-MM-DD)")
+    parser.add_argument("--weekly", action="store_true",
+                        help="with --mode finalize: process the weekly digest instead")
+    args = parser.parse_args()
+
+    runner = {"daily": run_daily, "weekly": run_weekly, "finalize": run_finalize}[args.mode]
+    raise SystemExit(runner(args))
+
+
+if __name__ == "__main__":
+    main()

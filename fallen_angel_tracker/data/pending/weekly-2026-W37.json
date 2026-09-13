@@ -1,0 +1,64 @@
+{
+  "week": "2026-W37",
+  "date_str": "2026-09-13",
+  "picks": [
+    {
+      "Date": "2026-09-13",
+      "Ticker": "TGT",
+      "Company Name": "Target Corporation",
+      "Market Price ($)": "155.83",
+      "Fair Value ($)": "162.76",
+      "Discount (%)": "4.26",
+      "Gross Margin (%)": "27.93",
+      "Operating Margin (%)": "4.88",
+      "ROIC (%)": "13.43",
+      "WACC (%)": "7.48",
+      "Net Debt / EBITDA": "1.57",
+      "Interest Coverage Ratio": "11.5",
+      "FCF Yield (%)": "4.00",
+      "Moat Impairment Verdict": "Watch",
+      "Core Headwinds / Catalyst": "insufficient edge on current numbers",
+      "Strategic Action": "Wait for Next Earnings",
+      "Headwind Category": "",
+      "Moat Sources": "",
+      "Deep-Dive": "Target Corporation (TGT) trades at 155.83 vs an estimated fair value of 162.76471 (4.3% discount, source: analyst_target_mean). Gross margin is eroding at 27.9%, operating margin 4.9%, ROIC 13.4% vs WACC 7.5%, FCF yield 4.0%. Flags: none. Signals are mixed; the discount is real but unproven. (Data collected — deep-dive pending. A ZCode session should analyze data/pending/daily-2026-09-13.json, then run `python main.py --mode finalize`.)",
+      "Tranche Plan": "Tranche 1: 25-30% of intended full position to establish exposure. Tranche 2: 50% after the next earnings report confirms stable margins. Tranche 3: remainder only if ROIC stays above WACC and the discount persists.",
+      "Invalidation Criteria": "Gross margin declines for 2 consecutive quarters (pricing power breaking) | Net Debt/EBITDA rises above 4.0x or interest coverage falls below 3.0x | A major customer segment publicly churns or switching-cost evidence reverses | ROIC stays below WACC for 4 consecutive quarters",
+      "Suggested Position Cap (%)": "5.0",
+      "Data Warnings": ""
+    }
+  ],
+  "tracking": [
+    {
+      "ticker": "TGT",
+      "company": "Target Corporation",
+      "rec_date": "2026-09-13",
+      "rec_price": 155.83,
+      "price": 155.83,
+      "return_pct": 1.1750334927285166e-06,
+      "return_1m": 1.1883128773082285,
+      "return_3m": 18.385165586620356,
+      "return_6m": 36.9413942364327,
+      "latest_verdict": "Watch",
+      "flag": "△ Watch — fundamentals softening"
+    },
+    {
+      "ticker": "UNH",
+      "company": "UnitedHealth Group Incorporated",
+      "rec_date": "2026-09-13",
+      "rec_price": 379.09,
+      "price": 379.09,
+      "return_pct": -9.660263700084215e-07,
+      "return_1m": -6.533691718057877,
+      "return_3m": -5.9905886309650995,
+      "return_6m": 37.612401180571055,
+      "latest_verdict": "Pass - Temporary",
+      "flag": "⚠ Coverage 4.7x below 5x"
+    }
+  ],
+  "lesson": {
+    "title": "Chipotle's E. Coli Outbreak (2015)",
+    "body": "Food-safety scandal cut traffic and the stock roughly halved. Yet the underlying economics — high unit-level margins, no debt, customers who came back within months, industry-leading same-store recovery — were intact. A classic 'surface-level wound, healthy organs' fallen angel. Lesson: ask whether the crisis permanently removed the reason customers chose the business in the first place."
+  },
+  "notes": []
+}

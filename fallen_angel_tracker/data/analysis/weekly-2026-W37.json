@@ -1,0 +1,20 @@
+{
+  "week": "2026-W37",
+  "picks": [
+    {
+      "ticker": "TGT",
+      "why_moat_intact": "Target's moat is a cost-advantage + network hybrid: 1,950 stores within 10 miles of 75% of the US population double as fulfillment nodes no pure e-commerce player can replicate, while owned brands (Good & Gather) rebuild pricing power. Traffic recovers when the news cycle fades — same-store economics never broke.",
+      "market_overreaction": "The market is extrapolating a transitory shrink-theft and DEI-boycott headline cycle into permanent margin erosion, ignoring that gross margin history shows only normal cyclical drift.",
+      "tranche_strategy": "Tranche 1: 25-30% now while sentiment is washed out. Tranche 2: 30% after next earnings confirms traffic stabilization. Tranche 3: remainder once FCF yield holds above 4% for two quarters.",
+      "invalidation_criteria": [
+        "Same-store sales decline for 3 consecutive quarters",
+        "Gross margin falls below 25% (pricing power breaking)",
+        "Store closure pace accelerates beyond normal rotation"
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "Chipotle's E. Coli Outbreak (2015)",
+    "body": "When Chipotle's E. coli scandal hit in 2015, the stock roughly halved and headlines declared fast-casual dead. But look at what actually broke: nothing structural. Units stayed profitable, debt was zero, and the reason customers chose Chipotle — fast, fresh, customizable food — was untouched by a supply-chain contamination at one ingredient. Comparable sales recovered within a year and the stock went on to triple. The Buffett filter is simple: a crisis that damages the CUSTOMER'S REASON FOR CHOOSING you is structural; a crisis that merely damages their CONFIDENCE for a season is transitory. The investor's job in the panic is not optimism — it is verification. Walk the stores, read the unit economics, check the balance sheet. If the organs are healthy, the wound is a discount. Actionable takeaway: when a fallen angel scares the market, ask one question — did the crisis remove the reason customers choose this business, or only their courage to admit it in public?"
+  }
+}

@@ -1,0 +1,9 @@
+# Secrets & credentials — never commit these
+.env
+*.pem
+
+# Local previews (regenerated on demand)
+fallen_angel_tracker/output/
+__pycache__/
+*.pyc
+.venv/
