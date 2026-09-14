@@ -3,18 +3,18 @@
   "picks": [
     {
       "ticker": "TGT",
-      "why_moat_intact": "Target's moat is a cost-advantage + network hybrid: 1,950 stores within 10 miles of 75% of the US population double as fulfillment nodes no pure e-commerce player can replicate, while owned brands (Good & Gather) rebuild pricing power. Traffic recovers when the news cycle fades — same-store economics never broke.",
-      "market_overreaction": "The market is extrapolating a transitory shrink-theft and DEI-boycott headline cycle into permanent margin erosion, ignoring that gross margin history shows only normal cyclical drift.",
-      "tranche_strategy": "Tranche 1: 25-30% now while sentiment is washed out. Tranche 2: 30% after next earnings confirms traffic stabilization. Tranche 3: remainder once FCF yield holds above 4% for two quarters.",
+      "why_moat_intact": "ป้อมปราการของ Target คือ Cost Advantage ผสม Network ของสาขา: ร้านราว 1,950 สาขาที่อยู่ห่างจากคนอเมริกัน 75% ไม่เกิน 10 ไมล์ ทำหน้าที่เป็นทั้งหน้าร้านและศูนย์กระจายสินค้า — สิ่งที่ผู้เล่น e-commerce ล้วนสร้างซ้ำไม่ได้ ขณะที่สินค้าแบรนด์เอง (Good & Gather) ช่วยฟื้น Pricing Power ปัญหาเรื่องของถูกขโมยและข่าว boycott เป็นแผลผิวหนัง ไม่ใช่มะเร็ง — เศรษฐกิจรายสาขาไม่ได้แตก",
+      "market_overreaction": "ตลาดกำลังต่อยอดข่าวร้ายระยะสั้น (ขโมยของ, boycott) ให้กลายเป็นการสูญเสีย margin ถาวร ทั้งที่ประวัติ gross margin แสดงเพียงการลดลงตามวัฏจักรปกติ ไม่ใช่การพังของ pricing power",
+      "tranche_strategy": "ไม้แรก: 25-30% ของ position เป้าหมาย ตอน sentiment ต่ำสุด / ไม้สอง: 30% เมื่อ earnings ถัดไปยืนยันยอดขาย same-store นิ่ง / ไม้สุดท้าย: ที่เหลือเมื่อ FCF yield ยืนเหนือ 4% สองไตรมาดติด",
       "invalidation_criteria": [
-        "Same-store sales decline for 3 consecutive quarters",
-        "Gross margin falls below 25% (pricing power breaking)",
-        "Store closure pace accelerates beyond normal rotation"
+        "ยอดขาย same-store ลดลงติดต่อกัน 3 ไตรมาส",
+        "Gross margin หลุดต่ำกว่า 25% (pricing power พัง)",
+        "อัตราปิดสาขาเร่งเกินการหมุนเวียนปกติ"
       ]
     }
   ],
   "lesson": {
-    "title": "Chipotle's E. Coli Outbreak (2015)",
-    "body": "When Chipotle's E. coli scandal hit in 2015, the stock roughly halved and headlines declared fast-casual dead. But look at what actually broke: nothing structural. Units stayed profitable, debt was zero, and the reason customers chose Chipotle — fast, fresh, customizable food — was untouched by a supply-chain contamination at one ingredient. Comparable sales recovered within a year and the stock went on to triple. The Buffett filter is simple: a crisis that damages the CUSTOMER'S REASON FOR CHOOSING you is structural; a crisis that merely damages their CONFIDENCE for a season is transitory. The investor's job in the panic is not optimism — it is verification. Walk the stores, read the unit economics, check the balance sheet. If the organs are healthy, the wound is a discount. Actionable takeaway: when a fallen angel scares the market, ask one question — did the crisis remove the reason customers choose this business, or only their courage to admit it in public?"
+    "title": "วิกัด E. Coli ของ Chipotle (2015)",
+    "body": "เมื่อข่าวเชื้อ E. coli ระบาดในปี 2015 หุ้น Chipotle ร่วงราวครึ่งหนึ่ง และสื่อประกาศว่ายุค fast-casual จบแล้ว แต่ลองถามว่าอะไรแตกจริง: หน่วยร้านยังกำไรงาม หนี้เป็นศูนย์ และเหตุผลที่ลูกค้าเลือก Chipotle — อาหารเร็ว สด ปรับได้ตามชอบ — ไม่ได้ถูกทำลายจากการปนเปื้อนที่วัตถุดิบจุดเดียว ยอดขาย same-store กลับมาภายในปีเดียว และหุ้นไปไกลกว่าสามเท่า ตัวกรองแบบ Buffett ง่ายมาก: วิกฤตที่ทำลาย 'เหตุผลที่ลูกค้าเลือกใช้เรา' คือความเสียหายเชิงโครงสร้าง; วิกฤตที่ทำลายแค่ 'ความมั่นใจชั่วฤดูกาล' คือแผลผิวหนัง หน้าที่ของนักลงทุนตอนตลาดตื่นตระหนกไม่ใช่การมองโลกในแง่ดี แต่คือการไปตรวจสอบ — เดินดูร้าน อ่านเศรษฐกิจรายสาขา เช็คงบดุล ถ้าอวัยวะภายในแข็งแรง แผลก็คือส่วนลด ข้อสรุปที่ใช้ได้ทันที: เจอหุ้น fallen angel ที่ตลาดกลัว ให้ถามคำถามเดียว — วิกฤตนี้ลบเหตุผลที่ลูกค้าเลือกธุรกิจนี้ไปจริง หรือแค่ลบความกล้าของคนซื้อหุ้น?"
   }
 }

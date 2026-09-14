@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 import analyzer
 import config
 import data_fetcher
+import discord_notifier
 import storage
 from mailer import build_weekly_email, send_email
 
@@ -209,17 +210,18 @@ def _finalize_daily(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def _deterioration_flag(latest: dict) -> str:
+    """Thai alert strings — these surface only in the weekly digest."""
     verdict = str(latest.get("Moat Impairment Verdict", ""))
     if "Fail" in verdict:
-        return "⚠ Verdict FAIL — value trap risk"
+        return "⚠ Verdict FAIL — เสี่ยงเป็น Value Trap"
     leverage = storage.to_float(latest.get("Net Debt / EBITDA"))
     coverage = storage.to_float(latest.get("Interest Coverage Ratio"))
     if leverage is not None and leverage > config.MAX_NET_DEBT_EBITDA:
-        return f"⚠ Leverage {leverage:.1f}x above {config.MAX_NET_DEBT_EBITDA:.0f}x"
+        return f"⚠ หนี้สุทธิ {leverage:.1f}x EBITDA เกินเกณฑ์ {config.MAX_NET_DEBT_EBITDA:.0f}x"
     if coverage is not None and coverage < config.MIN_INTEREST_COVERAGE:
-        return f"⚠ Coverage {coverage:.1f}x below {config.MIN_INTEREST_COVERAGE:.0f}x"
+        return f"⚠ Coverage {coverage:.1f}x ต่ำกว่าเกณฑ์ {config.MIN_INTEREST_COVERAGE:.0f}x"
     if "Watch" in verdict:
-        return "△ Watch — fundamentals softening"
+        return "△ Watch — พื้นฐานเริ่มอ่อนแรง ติดตามต่อ"
     return ""
 
 
@@ -233,7 +235,7 @@ def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
         try:
             stats = data_fetcher.fetch_price_stats(ticker)
         except Exception as exc:  # noqa: BLE001
-            notes.append(f"{ticker}: price fetch failed ({exc})")
+            notes.append(f"{ticker}: ดึงราคาไม่สำเร็จ ({exc})")
             continue
         latest = latest_by_ticker.get(ticker, first)
         rec_price = storage.to_float(first.get("Market Price ($)"))
@@ -280,6 +282,7 @@ def _build_digest(payload: dict, analysis: dict) -> dict:
         })
     lesson = analysis.get("lesson") or payload["lesson"]
     return {
+        "week": payload.get("week", ""),
         "date_str": payload["date_str"],
         "picks": picks_payload,
         "tracking": payload["tracking"],
@@ -312,13 +315,15 @@ def run_weekly(args: argparse.Namespace) -> int:
         ]
         lesson = analyzer.generate_mini_lesson(use_llm=True)
         digest = {
-            "date_str": today, "picks": pick_payloads, "tracking": tracking,
-            "lesson": lesson, "notes": notes,
+            "week": week, "date_str": today, "picks": pick_payloads,
+            "tracking": tracking, "lesson": lesson, "notes": notes,
         }
         subject, html_body = build_weekly_email(digest)
         storage.write_weekly_report(digest)
-        sent = send_email(subject, html_body)
-        if not sent and config.smtp_ready():
+        email_failed = not send_email(subject, html_body) and config.smtp_ready()
+        discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_ready()
+        if email_failed or discord_failed:
+            print("[weekly] ERROR: a configured delivery channel failed")
             return 1
         print("[weekly] inline API-LLM digest rendered and delivered")
         return 0
@@ -347,7 +352,7 @@ def run_weekly(args: argparse.Namespace) -> int:
 
 
 def _finalize_weekly(args: argparse.Namespace) -> int:
-    week = _week_label()
+    week = args.week or _week_label()
     pending_path = config.PENDING_DIR / f"weekly-{week}.json"
     analysis_path = config.ANALYSIS_DIR / f"weekly-{week}.json"
     if not pending_path.exists():
@@ -376,9 +381,10 @@ def _finalize_weekly(args: argparse.Namespace) -> int:
         return 0
 
     print(f"[finalize] markdown digest: {md_path.relative_to(config.BASE_DIR)}")
-    sent = send_email(subject, html_body)
-    if not sent and config.smtp_ready():
-        print("[finalize] ERROR: email configured but sending failed")
+    email_failed = not send_email(subject, html_body) and config.smtp_ready()
+    discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_ready()
+    if email_failed or discord_failed:
+        print("[finalize] ERROR: a configured delivery channel failed")
         return 1
     return 0
 
@@ -400,6 +406,7 @@ def main() -> None:
                         help="run the narrative analysis inline via the configured LLM API "
                              "(default: write a pending file for the ZCode harness)")
     parser.add_argument("--date", default="", help="finalize daily rows of this date (YYYY-MM-DD)")
+    parser.add_argument("--week", default="", help="finalize the weekly digest of this ISO week (YYYY-Www)")
     parser.add_argument("--weekly", action="store_true",
                         help="with --mode finalize: process the weekly digest instead")
     args = parser.parse_args()

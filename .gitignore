@@ -2,7 +2,9 @@
 .env
 *.pem
 
-# Local previews (regenerated on demand)
+# Runtime data & generated previews (data/daily_log.csv is the tracking
+# database — it lives on disk; keep your own backup if it matters to you)
+fallen_angel_tracker/data/
 fallen_angel_tracker/output/
 __pycache__/
 *.pyc

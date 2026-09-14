@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 
 import config
 from analyzer import COLUMNS
+from data_fetcher import chart_links_md, chart_urls
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +154,8 @@ def _daily_section(row: dict) -> list[str]:
         f"{row.get('Interest Coverage Ratio') or 'n/a'} |",
         f"| FCF Yield | {row.get('FCF Yield (%)')}% |",
         "",
+        f"**📈 ดูกราฟ:** {chart_links_md(row.get('Ticker', ''))}",
+        "",
         f"**Headwinds / Catalyst:** {row.get('Core Headwinds / Catalyst')}",
         "",
         f"**Deep-Dive:** {row.get('Deep-Dive')}",
@@ -188,14 +191,15 @@ def _fmt_pct_return(value) -> str:
 
 def _weekly_tracking_table(tracking: list[dict]) -> list[str]:
     if not tracking:
-        return ["_No actionable recommendations logged yet._", ""]
+        return ["_ยังไม่มีคำแนะนำที่บันทึกไว้ — รัน daily pipeline ก่อน_", ""]
     lines = [
-        "| Ticker | Rec. Date | Rec. Price | Now | Return | 1M | 3M | 6M | Latest Verdict | Alert |",
+        "| Ticker | วันที่แนะนำ | ราคาตอนแนะนำ | ราคาปัจจุบัน | ผลตอบแทน | 1M | 3M | 6M | Verdict ล่าสุด | สัญญาณเตือน |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for t in tracking:
+        tv_url = chart_urls(t["ticker"])["TradingView"]
         lines.append(
-            f"| **{t['ticker']}** | {t['rec_date']} | ${t['rec_price']} | ${t['price']} "
+            f"| **[{t['ticker']}]({tv_url})** | {t['rec_date']} | ${t['rec_price']} | ${t['price']} "
             f"| {_fmt_pct_return(t['return_pct'])} | {_fmt_pct_return(t['return_1m'])} "
             f"| {_fmt_pct_return(t['return_3m'])} | {_fmt_pct_return(t['return_6m'])} "
             f"| {t['latest_verdict']} | {t['flag'] or '—'} |"
@@ -205,38 +209,45 @@ def _weekly_tracking_table(tracking: list[dict]) -> list[str]:
 
 
 def write_weekly_report(data: dict) -> object:
-    """Write reports/weekly/YYYY-Www.md from the same payload that feeds the email."""
+    """Write reports/weekly/<YYYY-Www>.md from the same payload that feeds the email.
+
+    The filename follows the payload's week (data["week"]) so finalizing an
+    older week never scatters files across the wrong folders.
+    """
     config.WEEKLY_REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    iso = datetime.now(timezone.utc).isocalendar()
-    path = config.WEEKLY_REPORT_DIR / f"{iso.year}-W{iso.week:02d}.md"
+    week = data.get("week") or datetime.now(timezone.utc).strftime("%G-W%V")
+    path = config.WEEKLY_REPORT_DIR / f"{week}.md"
 
     lines = [f"# 🦅 Fallen Angel Weekly Digest — {data['date_str']}", ""]
 
-    lines += ["## Section 1 — Fallen Angels of the Week", ""]
+    lines += ["## ส่วนที่ 1 — Fallen Angels ประจำสัปดาห์", ""]
     if not data["picks"]:
-        lines += ["_Nothing passed the Moat Impairment screen this week — patience is a position._", ""]
+        lines += ["_สัปดาห์นี้ไม่มีหุ้นผ่าน Moat Impairment screen — การรอคอยก็เป็น position หนึ่ง_", ""]
     for i, pick in enumerate(data["picks"], start=1):
         row, n = pick["row"], pick["narrative"]
         lines += [
             f"### #{i} {row.get('Company Name')} ({row.get('Ticker')})",
             "",
-            f"**{row.get('Moat Impairment Verdict')}** · {row.get('Strategic Action')} · "
-            f"Position cap {row.get('Suggested Position Cap (%)')}% · "
-            f"Price ${row.get('Market Price ($)')} vs FV ${row.get('Fair Value ($)')} "
-            f"({row.get('Discount (%)')}% discount)",
+            f"**Verdict:** {row.get('Moat Impairment Verdict')} · "
+            f"**แผน:** {row.get('Strategic Action')} · "
+            f"**เพดานพอร์ต:** {row.get('Suggested Position Cap (%)')}% · "
+            f"**ราคา:** ${row.get('Market Price ($)')} vs FV ${row.get('Fair Value ($)')} "
+            f"(ส่วนลด {row.get('Discount (%)')}%)",
             "",
-            f"**🏰 Why the moat is intact:** {n['why_moat_intact']}",
+            f"**📈 ดูกราฟ:** {chart_links_md(row.get('Ticker', ''))}",
             "",
-            f"**📉 How the market is overreacting:** {n['market_overreaction']}",
+            f"**🏰 ทำไมป้อมปราการยังแข็งแกร่ง:** {n['why_moat_intact']}",
             "",
-            f"**🎯 Tranche strategy:** {n['tranche_strategy']}",
+            f"**📉 ตลาดกำลัง overreact อย่างไร:** {n['market_overreaction']}",
             "",
-            "**🚪 Invalidation criteria:**",
+            f"**🎯 แผนแบ่งไม้เข้าซื้อ:** {n['tranche_strategy']}",
+            "",
+            "**🚪 จุดยอมแพ้ (Invalidation Criteria) — เจอเมื่อไหร่ต้องตัด:**",
             "\n".join(f"- {c}" for c in n["invalidation_criteria"]),
             "",
         ]
 
-    lines += ["## Section 2 — Portfolio & Watchlist Tracking", ""]
+    lines += ["## ส่วนที่ 2 — ติดตามพอร์ต & Watchlist", ""]
     lines += _weekly_tracking_table(data["tracking"])
     for note in data.get("notes", []):
         lines.append(f"> ⚠ {note}")
@@ -245,15 +256,14 @@ def write_weekly_report(data: dict) -> object:
 
     lesson = data["lesson"]
     lines += [
-        "## Section 3 — Buffett-style Mini-Lesson",
+        "## ส่วนที่ 3 — บทเรียนการลงทุนสไตล์ Buffett",
         "",
         f"### 📚 {lesson['title']}",
         "",
         lesson["body"],
         "",
         "---",
-        "_Generated automatically by the Fallen Angel Tracker. Educational automation, "
-        "not personalized investment advice._",
+        "_สร้างอัตโนมัติโดย Fallen Angel Tracker — เนื้อหาเชิงการศึกษา ไม่ใช่คำแนะนำการลงทุน_",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

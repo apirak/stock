@@ -2,9 +2,8 @@
 Central configuration for the Fallen Angel / Quality Value Investing Tracker.
 
 All secrets and environment-specific settings come from environment variables.
-A local `.env` file is loaded automatically (python-dotenv); on GitHub Actions
-the values arrive as repository Secrets. Storage is 100% local (CSV + Markdown
-reports) — no external database needed.
+A local `.env` file is loaded automatically (python-dotenv). Storage is 100%
+local (CSV + Markdown reports) — no external database needed.
 """
 from __future__ import annotations
 
@@ -51,7 +50,7 @@ DEFAULT_LLM_MODELS = {
 }
 
 # ---------------------------------------------------------------------------
-# Email (Gmail SMTP with App Password)
+# Email (Gmail SMTP with App Password) & Discord webhook
 # ---------------------------------------------------------------------------
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
@@ -59,6 +58,12 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # 16-char Gmail App Password
 EMAIL_FROM = os.getenv("EMAIL_FROM", SMTP_USER)
 EMAIL_TO = [a.strip() for a in os.getenv("EMAIL_TO", "").split(",") if a.strip()]
+
+# Discord server webhook (Server Settings → Integrations → Webhooks).
+# Treated as a secret: anyone holding the URL can post to the channel.
+# Messages display the webhook's own name/avatar unless overridden here.
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+DISCORD_USERNAME = os.getenv("DISCORD_USERNAME", "")
 
 # ---------------------------------------------------------------------------
 # Stock universe: curated list of historically wide-moat companies.
@@ -257,3 +262,7 @@ def llm_ready() -> bool:
 
 def smtp_ready() -> bool:
     return bool(SMTP_USER and SMTP_PASSWORD and EMAIL_TO)
+
+
+def discord_ready() -> bool:
+    return bool(DISCORD_WEBHOOK_URL)

@@ -128,9 +128,9 @@ def margin_trend(snap: FinancialSnapshot) -> str:
         return "unknown"
     delta = hist[0] - hist[-1]  # newest minus oldest
     if delta < -0.03:
-        return "improving"
-    if delta > 0.03:
         return "eroding"
+    if delta > 0.03:
+        return "improving"
     return "stable"
 
 

@@ -40,7 +40,7 @@
       "return_3m": 18.385165586620356,
       "return_6m": 36.9413942364327,
       "latest_verdict": "Watch",
-      "flag": "△ Watch — fundamentals softening"
+      "flag": "△ Watch — พื้นฐานเริ่มอ่อนแรง ติดตามต่อ"
     },
     {
       "ticker": "UNH",
@@ -53,7 +53,7 @@
       "return_3m": -5.9905886309650995,
       "return_6m": 37.612401180571055,
       "latest_verdict": "Pass - Temporary",
-      "flag": "⚠ Coverage 4.7x below 5x"
+      "flag": "⚠ Coverage 4.7x ต่ำกว่าเกณฑ์ 5x"
     }
   ],
   "lesson": {

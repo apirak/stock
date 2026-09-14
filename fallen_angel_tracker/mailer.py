@@ -14,6 +14,17 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import config
+from data_fetcher import chart_urls
+
+_LINK_CSS = "color:#1d3557;font-weight:bold;text-decoration:none"
+
+
+def _chart_links_html(ticker) -> str:
+    links = " &middot; ".join(
+        f'<a href="{url}" style="{_LINK_CSS}">{name}</a>'
+        for name, url in chart_urls(ticker).items()
+    )
+    return f'<span style="font-family:Arial;font-size:12px">📈 ดูกราฟ: {links}</span>'
 
 
 def _esc(text) -> str:
@@ -90,13 +101,14 @@ def _pick_card(pick: dict, rank: int) -> str:
       <p style="margin:0 0 12px">
         <span style="{_LABEL_CSS}">{_esc(row.get('Moat Impairment Verdict'))}</span>
         <span style="{_LABEL_CSS}">{_esc(row.get('Strategic Action'))}</span>
-        <span style="{_LABEL_CSS}">Cap {_esc(row.get('Suggested Position Cap (%)'))}% of portfolio</span>
+        <span style="{_LABEL_CSS}">เพดานพอร์ต {_esc(row.get('Suggested Position Cap (%)'))}%</span>
       </p>
       {_metrics_table(row)}
-      <p style="margin:14px 0 4px"><b style="font-family:Arial;font-size:13px">🏰 Why the moat is intact</b><br>{_nl2br(narrative['why_moat_intact'])}</p>
-      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">📉 How the market is overreacting</b><br>{_nl2br(narrative['market_overreaction'])}</p>
-      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🎯 Tranche strategy (split entries)</b><br>{_nl2br(narrative['tranche_strategy'])}</p>
-      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🚪 Invalidation criteria — cut if any trigger</b></p>
+      <p style="margin:12px 0 0">{_chart_links_html(row.get('Ticker'))}</p>
+      <p style="margin:14px 0 4px"><b style="font-family:Arial;font-size:13px">🏰 ทำไมป้อมปราการยังแข็งแกร่ง</b><br>{_nl2br(narrative['why_moat_intact'])}</p>
+      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">📉 ตลาดกำลัง Overreact อย่างไร</b><br>{_nl2br(narrative['market_overreaction'])}</p>
+      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🎯 แผนแบ่งไม้เข้าซื้อ (Tranche)</b><br>{_nl2br(narrative['tranche_strategy'])}</p>
+      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🚪 จุดยอมแพ้ (Invalidation) — เจอเมื่อไหร่ต้องตัด</b></p>
       <ul style="margin:4px 0 8px;padding-left:22px;font-size:13px">{invalidation_items}</ul>
     </div>"""
 
@@ -104,13 +116,13 @@ def _pick_card(pick: dict, rank: int) -> str:
 def _tracking_table(tracking: list[dict]) -> str:
     if not tracking:
         return (
-            "<p style=\"font-size:13px;color:#5c677d\">No actionable recommendations "
-            "logged yet — the tracking table will populate after the first daily run.</p>"
+            "<p style=\"font-size:13px;color:#5c677d\">ยังไม่มีคำแนะนำที่บันทึกไว้ — "
+            "ตารางนี้จะเริ่มมีข้อมูลหลังรัน daily pipeline ครั้งแรก</p>"
         )
     header = "".join(
         f'<th style="{_TH_CSS}">{h}</th>'
-        for h in ["Ticker", "Rec. Date", "Rec. Price", "Now", "Return",
-                  "1M", "3M", "6M", "Latest Verdict", "Alert"]
+        for h in ["Ticker", "วันที่แนะนำ", "ราคาตอนแนะนำ", "ราคาปัจจุบัน", "ผลตอบแทน",
+                  "1M", "3M", "6M", "Verdict ล่าสุด", "สัญญาณเตือน"]
     )
     body_rows = []
     for t in tracking:
@@ -122,7 +134,8 @@ def _tracking_table(tracking: list[dict]) -> str:
             return "n/a" if x is None else f"{x:+.1f}%"
 
         body_rows.append(
-            f'<tr><td style="{_TD_CSS}"><b>{_esc(t["ticker"])}</b></td>'
+            f'<tr><td style="{_TD_CSS}"><a href="{chart_urls(t["ticker"])["TradingView"]}" '
+            f'style="{_LINK_CSS}"><b>{_esc(t["ticker"])}</b></a></td>'
             f'<td style="{_TD_CSS}">{_esc(t["rec_date"])}</td>'
             f'<td style="{_TD_CSS}">${_esc(t["rec_price"])}</td>'
             f'<td style="{_TD_CSS}">${_esc(t["price"])}</td>'
@@ -142,9 +155,9 @@ def build_weekly_email(data: dict) -> tuple[str, str]:
     subject = f"🦅 Fallen Angel Weekly Digest — {date_str}"
 
     picks_html = "".join(_pick_card(p, i + 1) for i, p in enumerate(data["picks"])) or (
-        '<div style="' + _CARD_CSS + '"><p style="margin:0">No stock passed the '
-        "Moat Impairment screen this week — patience is a position. The watchlist "
-        "tracking below is still updated.</p></div>"
+        '<div style="' + _CARD_CSS + '"><p style="margin:0">สัปดาห์นี้ไม่มีหุ้นผ่าน '
+        "Moat Impairment screen — การรอคอยก็เป็น position หนึ่ง "
+        "แต่ตารางติดตามด้านล่างยังอัปเดตตามปกติ</p></div>"
     )
     lesson = data["lesson"]
     notes_html = "".join(
@@ -162,23 +175,22 @@ def build_weekly_email(data: dict) -> tuple[str, str]:
       Quality Value Investing Tracker &middot; { _esc(date_str) }</p>
   </div>
 
-  <div class="section" style="{_SECTION_CSS}">Section 1 &mdash; Fallen Angels of the Week</div>
+  <div class="section" style="{_SECTION_CSS}">ส่วนที่ 1 &mdash; Fallen Angels ประจำสัปดาห์</div>
   {picks_html}
 
-  <div class="section" style="{_SECTION_CSS}">Section 2 &mdash; Portfolio &amp; Watchlist Tracking</div>
+  <div class="section" style="{_SECTION_CSS}">ส่วนที่ 2 &mdash; ติดตามพอร์ต &amp; Watchlist</div>
   <div style="{_CARD_CSS}">{_tracking_table(data["tracking"])}{notes_html}</div>
 
-  <div class="section" style="{_SECTION_CSS}">Section 3 &mdash; Buffett-style Mini-Lesson</div>
+  <div class="section" style="{_SECTION_CSS}">ส่วนที่ 3 &mdash; บทเรียนการลงทุนสไตล์ Buffett</div>
   <div style="{_LESSON_CSS}">
     <h3 style="margin:0 0 8px;color:#8b1e3f;font-size:18px">📚 {_esc(lesson["title"])}</h3>
     <p style="margin:0;font-size:14px">{_nl2br(lesson["body"])}</p>
   </div>
 
   <p style="{_FOOTER_CSS}">
-    Generated automatically by the Fallen Angel / Quality Value Investing Tracker.
-    Fair values are estimates (analyst mean target / manual override / earnings-based proxy).
-    This is educational automation, not personalized investment advice — do your own work
-    before acting on any pick.
+    สร้างอัตโนมัติโดย Fallen Angel / Quality Value Investing Tracker — Fair Value เป็นค่าประมาณ
+    (เป้าหมายนักวิเคราะห์ / override มือ / ประมาณจากกำไร) เนื้อหามีวัตถุประสงค์เชิงการศึกษา
+    ไม่ใช่คำแนะนำการลงทุนส่วนบุคคล — โปรดศึกษาข้อมูลด้วยตนเองก่อนตัดสินใจทุกครั้ง
   </p>
 </div>
 </body></html>"""

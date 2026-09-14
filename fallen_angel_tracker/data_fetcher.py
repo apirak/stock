@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
+from urllib.parse import quote
 
 import pandas as pd
 import yfinance as yf
@@ -20,6 +21,22 @@ import yfinance as yf
 import config
 
 TRADING_DAYS = {"1m": 21, "3m": 63, "6m": 126}
+
+
+def chart_urls(ticker: str) -> dict[str, str]:
+    """Chart/info pages for a ticker. Ticker-only URLs (no exchange prefix) —
+    they resolve correctly for common US listings."""
+    tk = quote(str(ticker).upper(), safe="")
+    return {
+        "TradingView": f"https://www.tradingview.com/chart/?symbol={tk}",
+        "Yahoo Finance": f"https://finance.yahoo.com/quote/{tk}",
+        "StockAnalysis": f"https://stockanalysis.com/stocks/{tk.lower()}/",
+    }
+
+
+def chart_links_md(ticker: str) -> str:
+    """Markdown link row, e.g. for MD reports and Discord embed fields."""
+    return " · ".join(f"[{name}]({url})" for name, url in chart_urls(ticker).items())
 
 
 @dataclass
