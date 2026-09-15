@@ -1,7 +1,7 @@
 """
 Entrypoint for the Fallen Angel / Quality Value Investing Tracker.
 
-Hybrid architecture (default — zero LLM API cost):
+Hybrid architecture (zero LLM API cost — this codebase contains no LLM calls):
   1. `--mode daily` / `--mode weekly` : Python collects market data, runs the
      deterministic screen, logs to CSV/MD and writes a PENDING file under
      data/pending/.
@@ -11,13 +11,10 @@ Hybrid architecture (default — zero LLM API cost):
   3. `--mode finalize` merges the analysis into the CSV and regenerates the
      Markdown report (and for weekly: renders the email and sends it).
 
-Optional `--use-api-llm` runs the analysis inline via a paid LLM API instead
-(config.LLM_PROVIDER + key) — one command, no ZCode step needed.
-
 Usage:
-    python main.py --mode daily  [--tickers UNH,TGT] [--dry-run] [--use-api-llm]
-    python main.py --mode weekly [--dry-run] [--use-api-llm]
-    python main.py --mode finalize [--weekly] [--date YYYY-MM-DD]
+    python main.py --mode daily  [--tickers UNH,TGT] [--dry-run]
+    python main.py --mode weekly [--dry-run]
+    python main.py --mode finalize [--weekly] [--date YYYY-MM-DD] [--week YYYY-Www]
 """
 from __future__ import annotations
 
@@ -80,10 +77,8 @@ def _write_json(path, payload: dict) -> None:
 
 def run_daily(args: argparse.Namespace) -> int:
     today = _today()
-    use_api = args.use_api_llm and config.llm_ready()
     tickers = _resolve_tickers(args.tickers)
-    mode_note = "with inline API LLM" if use_api else "rule-based (no LLM cost)"
-    print(f"[daily] analyzing {len(tickers)} ticker(s) {mode_note}: {', '.join(tickers)}")
+    print(f"[daily] analyzing {len(tickers)} ticker(s) rule-based (no LLM cost): {', '.join(tickers)}")
 
     rows: list[dict] = []
     pending: list[dict] = []
@@ -93,10 +88,9 @@ def run_daily(args: argparse.Namespace) -> int:
             snap = data_fetcher.fetch_snapshot(
                 ticker, fair_value_override=config.FAIR_VALUE_OVERRIDES.get(ticker)
             )
-            row = analyzer.analyze_ticker(snap, use_llm=use_api)
+            row = analyzer.analyze_ticker(snap)
             rows.append(row)
-            if not use_api:
-                pending.append(analyzer.pending_entry(snap, row))
+            pending.append(analyzer.pending_entry(snap, row))
             _print_row_summary(row)
         except Exception as exc:  # noqa: BLE001 - one bad ticker must not kill the run
             failures += 1
@@ -202,6 +196,10 @@ def _finalize_daily(args: argparse.Namespace) -> int:
     for row in rows:
         _print_row_summary(row)
     print(f"[finalize] markdown report regenerated: {report_path.relative_to(config.BASE_DIR)}")
+    discord_failed = not discord_notifier.send_daily_summary(rows) and config.discord_ready()
+    if discord_failed:
+        print("[finalize] ERROR: daily Discord delivery failed")
+        return 1
     return 0
 
 
@@ -294,7 +292,6 @@ def _build_digest(payload: dict, analysis: dict) -> dict:
 def run_weekly(args: argparse.Namespace) -> int:
     today = _today()
     week = _week_label()
-    use_api = args.use_api_llm and config.llm_ready()
     print(f"[weekly] building digest for {today} ({week})")
 
     all_rows = storage.read_log_rows()
@@ -308,32 +305,12 @@ def run_weekly(args: argparse.Namespace) -> int:
     if all_rows:
         tracking, notes = build_tracking(all_rows)
 
-    if use_api:
-        pick_payloads = [
-            {"row": pick, "narrative": analyzer.generate_pick_narrative(pick, use_llm=True)}
-            for pick in picks
-        ]
-        lesson = analyzer.generate_mini_lesson(use_llm=True)
-        digest = {
-            "week": week, "date_str": today, "picks": pick_payloads,
-            "tracking": tracking, "lesson": lesson, "notes": notes,
-        }
-        subject, html_body = build_weekly_email(digest)
-        storage.write_weekly_report(digest)
-        email_failed = not send_email(subject, html_body) and config.smtp_ready()
-        discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_ready()
-        if email_failed or discord_failed:
-            print("[weekly] ERROR: a configured delivery channel failed")
-            return 1
-        print("[weekly] inline API-LLM digest rendered and delivered")
-        return 0
-
     payload = {
         "week": week,
         "date_str": today,
         "picks": picks,
         "tracking": tracking,
-        "lesson": analyzer.generate_mini_lesson(use_llm=False),  # seed topic for the harness
+        "lesson": analyzer.generate_mini_lesson(),  # seed topic for the harness
         "notes": notes,
     }
     digest = _build_digest(payload, {})
@@ -382,7 +359,7 @@ def _finalize_weekly(args: argparse.Namespace) -> int:
 
     print(f"[finalize] markdown digest: {md_path.relative_to(config.BASE_DIR)}")
     email_failed = not send_email(subject, html_body) and config.smtp_ready()
-    discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_ready()
+    discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_weekly_ready()
     if email_failed or discord_failed:
         print("[finalize] ERROR: a configured delivery channel failed")
         return 1
@@ -402,9 +379,6 @@ def main() -> None:
                         help="comma-separated tickers, overrides WATCHLIST (daily mode)")
     parser.add_argument("--dry-run", action="store_true",
                         help="do not write any files or send email; print instead")
-    parser.add_argument("--use-api-llm", action="store_true",
-                        help="run the narrative analysis inline via the configured LLM API "
-                             "(default: write a pending file for the ZCode harness)")
     parser.add_argument("--date", default="", help="finalize daily rows of this date (YYYY-MM-DD)")
     parser.add_argument("--week", default="", help="finalize the weekly digest of this ISO week (YYYY-Www)")
     parser.add_argument("--weekly", action="store_true",

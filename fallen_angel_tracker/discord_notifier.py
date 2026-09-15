@@ -1,24 +1,22 @@
 """
-Discord webhook delivery for the weekly digest.
+Discord webhook delivery.
 
-Configured via DISCORD_WEBHOOK_URL in .env (Discord: Server Settings →
-Integrations → Webhooks → Copy URL). The digest is posted as THREE separate
-messages for readability:
-
-  1. Lead        — headline, top-picks line, tracking table (code block)
-  2. Picks       — one verdict-colored embed per recommended stock
-  3. Lesson      — the rotating Buffett-style mini-lesson
+Two channels (both optional):
+  - DISCORD_WEBHOOK_URL          → daily summary, one message after finalize
+  - DISCORD_WEBHOOK_URL_WEEKLY   → weekly digest, posted as THREE separate
+    messages: ① lead + tracking table ② pick embeds ③ mini-lesson
+    (falls back to DISCORD_WEBHOOK_URL when unset)
 
 Discord caps: content ≤ 2000 chars, embed description ≤ 4096, field value ≤ 1024,
-10 embeds per message. All text is truncated to fit — the full report always
-lives in reports/weekly/ and the email. Never raises; returns False on failure.
+10 embeds per message. All text is truncated to fit — full reports always live in
+reports/. Never raises; each send returns False on failure.
 """
 from __future__ import annotations
 
 import requests
 
 import config
-from data_fetcher import chart_links_md
+from data_fetcher import chart_links_md, chart_urls
 
 _COLOR = {"Pass": 0x2ECC71, "Watch": 0xF1C40F, "Fail": 0xE74C3C}  # green/yellow/red
 
@@ -147,18 +145,61 @@ def _build_messages(data: dict) -> list[dict]:
 
 
 def send_weekly_digest(data: dict) -> bool:
-    """Post the digest to the configured Discord webhook as 3 messages.
+    """Post the weekly digest to the weekly Discord channel as 3 messages.
     True only if every message succeeds."""
-    if not config.discord_ready():
-        print("[discord] DISCORD_WEBHOOK_URL not configured; Discord delivery skipped")
+    url = config.DISCORD_WEBHOOK_URL_WEEKLY or config.DISCORD_WEBHOOK_URL
+    if not url:
+        print("[discord] no weekly webhook configured; Discord delivery skipped")
         return False
     messages = _build_messages(data)
     for i, payload in enumerate(messages, start=1):
         try:
-            resp = requests.post(config.DISCORD_WEBHOOK_URL, json=payload, timeout=30)
+            resp = requests.post(url, json=payload, timeout=30)
             resp.raise_for_status()
         except Exception as exc:  # noqa: BLE001 - notification must never kill the pipeline
             print(f"[discord] ERROR on message {i}/{len(messages)}: {exc}")
             return False
-    print(f"[discord] digest posted as {len(messages)} message(s)")
+    print(f"[discord] weekly digest posted as {len(messages)} message(s)")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Daily summary (single message, posted by --mode finalize after the merge)
+# ---------------------------------------------------------------------------
+
+def _verdict_emoji(verdict: str) -> str:
+    if str(verdict).startswith("Pass"):
+        return "✅"
+    if str(verdict).startswith("Fail"):
+        return "🚫"
+    return "⏳"
+
+
+def send_daily_summary(rows: list[dict]) -> bool:
+    """Post today's per-ticker verdicts as one compact message to the daily
+    channel. Called by --mode finalize (daily) once final verdicts are merged."""
+    if not config.discord_ready():
+        print("[discord] DISCORD_WEBHOOK_URL not configured; daily summary skipped")
+        return False
+    if not rows:
+        return False
+    date = str(rows[0].get("Date", ""))[:10]
+    lines = [f"🦅 **Fallen Angel Daily — {date}**"]
+    for row in rows:
+        ticker = row.get("Ticker", "")
+        discount = row.get("Discount (%)")
+        discount_txt = f"ส่วนลด {discount}%" if str(discount).strip() else "ส่วนลด n/a"
+        lines.append(
+            f"{_verdict_emoji(row.get('Moat Impairment Verdict', ''))} **{ticker}** — "
+            f"{row.get('Moat Impairment Verdict', 'n/a')} → {row.get('Strategic Action', 'n/a')} "
+            f"| {discount_txt} | [📊 chart]({chart_urls(ticker)['TradingView']})"
+        )
+    content = _trunc("\n".join(lines), _MAX_CONTENT)
+    try:
+        resp = requests.post(config.DISCORD_WEBHOOK_URL, json=_payload(content), timeout=30)
+        resp.raise_for_status()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[discord] ERROR posting daily summary: {exc}")
+        return False
+    print(f"[discord] daily summary posted ({len(rows)} ticker(s))")
     return True

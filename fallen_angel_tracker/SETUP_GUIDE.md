@@ -31,7 +31,7 @@
 
 ทั้งสาม step ผูกกันด้วย **ไฟล์ JSON contract** (pending → analysis) ทำให้ทดสอบ/รีรัน/ตรวจสอบแยกกันได้ทีละขั้น และถ้าขั้น 2 ล้ม ข้อมูลดิบก็ยังอยู่ใน CSV พร้อม verdict จาก rule-based แล้ว
 
-> **ทางเลือก:** `--use-api-llm` ยิง LLM API (Anthropic/OpenAI/Gemini ตาม `LLM_PROVIDER`) รวมขั้น 1–3 ในคำสั่งเดียว ไม่ต้องมีขั้น ZCode — มีค่า API ใช้เฉพาะเมื่ออยากได้ผลทันทีทีละรอบ
+> **การตัดสินใจเชิงออกแบบ:** โปรเจกต์นี้ **ไม่มีโค้ดเรียก LLM API เลย** — การวิเคราะห์ทั้งหมดทำโดย ZCode harness (อ่าน note ฉบับเต็มได้ที่ [ai-node/README.md](ai-node/README.md))
 
 ---
 
@@ -44,7 +44,7 @@ Automation คือ "ผู้ปลุก" — จะเรียก ZCode ses
 | Fallen Angel daily tracker | `0 7 * * 2-6` | อังคาร–เสาร์ 07:00 น. (ครอบคลุม US close จันทร์–ศุกร์) |
 | Fallen Angel weekly digest | `0 7 * * 1` | ทุกวันจันทร์ 07:00 น. |
 
-**Prompt ฉบับเต็มสำหรับสร้างทั้งสองตัวอยู่ใน [AUTOMATION_PROMPTS.md](AUTOMATION_PROMPTS.md)** — เปิดไฟล์ copy ไปวางเป็น prompt ตอนสร้าง automation ได้เลย (weekly ถูกกำหนดให้เขียน narrative เป็นภาษาไทย, daily เป็นอังกฤษ)
+**Prompt ฉบับเต็มอยู่ในโฟลเดอร์ [ai-node/](ai-node/)** — [daily-prompt.md](ai-node/daily-prompt.md) (อังกฤษ, มีอยู่แล้ว) และ [weekly-prompt.md](ai-node/weekly-prompt.md) (ไทย, ต้องสร้างในแชทใหม่) พร้อม [README บันทึกการตัดสินใจ](ai-node/README.md) ว่าทำไมระบบไม่มีโค้ดเรียก LLM API
 
 ข้อควรรู้:
 
@@ -93,12 +93,17 @@ Weekly digest ส่งได้ 2 ช่องทางพร้อมกัน
 2. ไปที่ [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) → สร้าง App Password → ได้รหัส **16 หลัก**
 3. กรอกใน `.env`: `SMTP_USER`, `SMTP_PASSWORD` (รหัส 16 หลัก — **ห้าม**รหัสผ่านจริง), `EMAIL_TO` (ผู้รับ คั่น comma)
 
-### 4.2 Discord Webhook
+### 4.2 Discord Webhooks — แยกช่องรายวัน / รายสัปดาห์
 
-1. ใน Discord server ของคุณ: **Server Settings → Integrations → Webhooks → New Webhook** → ตั้งชื่อ + avatar + เลือกช่อง → **Copy Webhook URL**
-2. กรอกใน `.env`: `DISCORD_WEBHOOK_URL=<url ที่ copy>`
-3. ข้อความที่โพสต์จะ **แสดงชื่อ/avatar ตามที่ตั้งไว้ในหน้า Webhooks** (เช่น "Z-Code Bot") — ถ้าอยากใช้ชื่ออื่นเฉพาะข้อความของระบบ ใส่ `DISCORD_USERNAME=<ชื่อ>` ใน `.env`
-4. เนื้อหาโพสต์แยกเป็น **3 ข้อความ** อ่านง่าย: ① ส่วนนำ + ตาราง tracking ② หุ้นแนะนำ — การ์ดสีตาม verdict (เขียว=Pass, เหลือง=Watch, แดง=Fail) พร้อมลิงก์ดูกราฟ (TradingView / Yahoo / StockAnalysis) ③ บทเรียนประจำสัปดาห์
+ระบบรองรับ 2 webhook:
+
+| ตัวแปรใน `.env` | ใช้เมื่อไหร่ | เนื้อหา |
+|---|---|---|
+| `DISCORD_WEBHOOK_URL` | ทุกวันอังคาร–เสาร์ หลัง finalize | สรุปรายวัน 1 ข้อความ: แต่ละตัว + verdict → action + ลิงก์กราฟ |
+| `DISCORD_WEBHOOK_URL_WEEKLY` | ทุกวันจันทร์ | digest 3 ข้อความ: ① ส่วนนำ+tracking ② หุ้นแนะนำ ③ บทเรียน (ไม่ตั้ง = ยิงเข้าช่อง daily แทน) |
+
+สร้าง webhook: **Server Settings → Integrations → Webhooks → New Webhook** → ตั้งชื่อ + avatar + เลือกช่อง → **Copy Webhook URL** แล้วกรอกตามช่องทางใน `.env`
+ข้อความที่โพสต์จะ **แสดงชื่อ/avatar ตามที่ตั้งไว้ในหน้า Webhooks** (เช่น "Z-Code Bot") — ถ้าอยากใช้ชื่ออื่นเฉพาะข้อความของระบบ ใส่ `DISCORD_USERNAME=<ชื่อ>` ใน `.env`
 
 > ⚠️ **Webhook URL เป็น secret** — ใครมี URL ก็โพสต์เข้าช่องคุณได้ เก็บไว้แค่ใน `.env` (gitignored) ถ้าหลุดไปแก้ได้ที่หน้า Webhooks กด Delete แล้วสร้างใหม่
 
@@ -128,7 +133,6 @@ python main.py --mode finalize --weekly     # 3) merge → reports/weekly/*.md +
 # ---- คำสั่งเสริม ----
 python main.py --mode daily --tickers UNH,TGT --dry-run   # ดูอย่างเดียว ไม่เขียนไฟล์
 python main.py --mode finalize --weekly --dry-run         # preview อีเมลที่ output/
-python main.py --mode daily --use-api-llm                 # จ่าย API: วิเคราะห์รวบจบในคำสั่งเดียว
 python main.py --mode finalize --date 2026-09-15          # finalize ย้อนวัน
 ```
 
@@ -159,14 +163,13 @@ Fair Value เป็น proxy 3 ชั้น: `FAIR_VALUE_OVERRIDES` (แนะ�
 
 | อาการ | สาเหตุ/วิธีแก้ |
 |---|---|
-| `finalize` บอก no analysis file | ยังไม่มีใครเขียน `data/analysis/daily-<date>.json` — ให้ ZCode วิเคราะห์ก่อน (หรือใช้ `--use-api-llm`) |
+| `finalize` บอก no analysis file | ยังไม่มีใครเขียน `data/analysis/daily-<date>.json` — ให้ ZCode วิเคราะห์ก่อน (prompt อยู่ที่ ai-node/) |
 | `finalize` บอก skipping TGT | ไฟล์ analysis ไม่มี ticker นั้น หรือวันที่ไม่ตรงกับแถวใน CSV — เช็ค `"date"` ใน JSON กับคอลัมน์ Date (แก้ด้วย `--date`) |
 | Weekly แทร็คผลตอบแทนไม่ได้ / ตารางว่าง | `daily_log.csv` ถูกลบ — ต้องมีอย่างน้อย 1 แถวที่ Action ≠ Avoid |
 | Automation ไม่ยิง | เครื่อง/ZCode ปิดหรือ sleep อยู่ตอนนั้น — รันมือ `python main.py --mode daily` แทนรอบนั้นได้ |
 | Gmail `535 Bad Credentials` | ใช้รหัสผ่านจริงแทน App Password หรือยังไม่เปิด 2FA |
 | Fair Value / Discount ว่าง | ไม่มี override, analyst target และ EPS ก็ไม่พอ — กรอก `FAIR_VALUE_OVERRIDES` |
 | yfinance ดึงข้อมูลไม่ครบบางตัว | ปกติสำหรับ ADR/REIT — ดูคอลัมน์ `Data Warnings` ใน CSV |
-| LLM API ตอบ parse ไม่ผ่าน (โหมด --use-api-llm) | fallback เป็น rule-based อัตโนมัติ — ลองเปลี่ยน `LLM_MODEL` |
 
 ---
 

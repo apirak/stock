@@ -1,19 +1,22 @@
 """
-Analytical engine: deterministic screening rules + LLM-powered Moat
-Impairment Test, strategic plan and weekly narratives.
+Analytical engine: deterministic screening rules + the file contract that
+hands the qualitative analysis to the ZCode harness.
 
-The LLM never gets the final say on arithmetic — all ratios are computed in
-data_fetcher and passed as facts. The LLM classifies the *nature* of the
-headwinds (transitory vs structural) and drafts the strategy; if no LLM is
-configured, rule-based fallbacks keep the pipeline alive.
+DESIGN DECISION (2026-09-15): this project intentionally contains NO LLM API
+code. All narrative analysis (Moat Impairment Test, deep-dives, tranche plans,
+mini-lessons) is performed by a ZCode automation session that reads the pending
+file under data/pending/ and writes data/analysis/ (merged by
+`python main.py --mode finalize`). See ai-node/README.md for the decision note
+and ai-node/daily-prompt.md / ai-node/weekly-prompt.md for the automation
+prompts.
+
+The rule-based layer below is NOT an LLM — it is deterministic arithmetic on
+the fetched financials. It always produces a first-pass verdict so the pipeline
+works even before the harness analysis is merged.
 """
 from __future__ import annotations
 
-import json
-import re
 from datetime import datetime, timezone
-
-import requests
 
 import config
 from data_fetcher import FinancialSnapshot
@@ -55,42 +58,6 @@ COLUMNS = [
     "Data Warnings",
 ]
 
-SYSTEM_PROMPT = """You are a disciplined Buffett-style quality-value analyst running a \
-"Fallen Angel" screen: wide-moat companies whose share price has fallen below intrinsic \
-value. Your job is to run a Moat Impairment Test and draft a strategic entry plan.
-
-CLASSIFICATION TAXONOMY — judge every headwind as either:
-- "Transitory / Surface-level": a wound to the skin, organs healthy. Examples: a one-off \
-product-safety scare, a single missed quarter, a temporary regulatory investigation, a \
-short-lived crisis of faith, macro-driven multiple compression. The reasons customers \
-chose the business (brand, switching costs, network effects, cost advantage) are intact.
-- "Structural Damage": a spreading cancer. Examples: permanent technology obsolescence \
-(Kodak, Blackberry), lost pricing power to competitors, customers churning permanently, \
-commoditization of the product, a moat eroded by secular change.
-
-VERDICT RULES:
-- "Pass - Temporary": headwinds are transitory AND the moat sources remain verifiable.
-- "Watch": mixed evidence, or the balance sheet is stressed but survivable.
-- "Fail - Value Trap": structural damage, or leverage/coverage suggests the business may \
-not survive to see the recovery.
-
-You must respect the quantitative facts given to you. Do not invent numbers. If a metric \
-is null, reason qualitatively and say what to verify next.
-
-Respond with ONLY a JSON object (no markdown fences, no commentary) matching this schema:
-{
-  "verdict": "Pass - Temporary" | "Watch" | "Fail - Value Trap",
-  "headwind_category": "Transitory / Surface-level" | "Structural Damage" | "Mixed",
-  "moat_sources": ["Intangible Assets" | "Switching Costs" | "Network Effect" | "Cost Advantage" | "Efficient Scale"],
-  "moat_intact": true | false,
-  "core_headwinds": "one or two sentences naming the specific headwinds and near-term catalyst",
-  "deep_dive": "3-5 sentence moat deep-dive: why the moat is (or is not) intact, and how exactly the market is overreacting (or correctly repricing)",
-  "tranche_plan": "concrete 3-tranche entry plan; first tranche should deploy 25-30% of the intended full position",
-  "invalidation_criteria": ["specific, observable falsifier 1", "...", "at least 3 items"],
-  "suggested_position_cap_pct": 5-8 (integer),
-  "key_risk": "single biggest risk in one sentence"
-}"""
-
 
 # ---------------------------------------------------------------------------
 # Deterministic screening rules
@@ -128,14 +95,15 @@ def margin_trend(snap: FinancialSnapshot) -> str:
         return "unknown"
     delta = hist[0] - hist[-1]  # newest minus oldest
     if delta < -0.03:
-        return "eroding"
-    if delta > 0.03:
         return "improving"
+    if delta > 0.03:
+        return "eroding"
     return "stable"
 
 
 def heuristic_verdict(snap: FinancialSnapshot) -> tuple[str, list[str]]:
-    """Rule-based classification used as LLM fallback and as a sanity layer."""
+    """Rule-based classification — the first-pass verdict before the harness
+    analysis is merged (and the standing verdict if no analysis arrives)."""
     flags = balance_sheet_flags(snap)
     reasons = list(flags)
     discount = snap.discount
@@ -167,85 +135,7 @@ def strategic_action(verdict: str, snap: FinancialSnapshot) -> str:
 
 
 # ---------------------------------------------------------------------------
-# LLM plumbing (REST, provider-agnostic)
-# ---------------------------------------------------------------------------
-
-def _extract_json(text: str) -> dict | None:
-    text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-    start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end <= start:
-        return None
-    try:
-        return json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-
-
-def _post(url: str, headers: dict, payload: dict) -> dict:
-    resp = requests.post(url, headers=headers, json=payload, timeout=config.LLM_TIMEOUT)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _call_anthropic(system: str, user: str) -> str:
-    payload = {
-        "model": config.LLM_MODEL or config.DEFAULT_LLM_MODELS["anthropic"],
-        "max_tokens": config.LLM_MAX_TOKENS,
-        "system": system,
-        "messages": [{"role": "user", "content": user}],
-    }
-    data = _post(
-        "https://api.anthropic.com/v1/messages",
-        {"x-api-key": config.ANTHROPIC_API_KEY,
-         "anthropic-version": "2023-06-01", "content-type": "application/json"},
-        payload,
-    )
-    return "".join(b.get("text", "") for b in data.get("content", []))
-
-
-def _call_openai(system: str, user: str) -> str:
-    payload = {
-        "model": config.LLM_MODEL or config.DEFAULT_LLM_MODELS["openai"],
-        "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": user}],
-    }
-    data = _post(
-        "https://api.openai.com/v1/chat/completions",
-        {"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
-        payload,
-    )
-    return data["choices"][0]["message"]["content"]
-
-
-def _call_gemini(system: str, user: str) -> str:
-    model = config.LLM_MODEL or config.DEFAULT_LLM_MODELS["gemini"]
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}"
-        f":generateContent?key={config.GEMINI_API_KEY}"
-    )
-    payload = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"parts": [{"text": user}]}],
-        "generationConfig": {"maxOutputTokens": config.LLM_MAX_TOKENS},
-    }
-    data = _post(url, {}, payload)
-    parts = data["candidates"][0]["content"]["parts"]
-    return "".join(p.get("text", "") for p in parts)
-
-
-def call_llm_json(system: str, user: str) -> dict | None:
-    if not config.llm_ready():
-        return None
-    callers = {"anthropic": _call_anthropic, "openai": _call_openai, "gemini": _call_gemini}
-    try:
-        return _extract_json(callers[config.LLM_PROVIDER](system, user))
-    except Exception as exc:  # noqa: BLE001 - degrade instead of killing the run
-        print(f"[analyzer] LLM call failed ({config.LLM_PROVIDER}): {exc}")
-        return None
-
-
-# ---------------------------------------------------------------------------
-# Daily analysis
+# Fallback narrative placeholders (replaced by the harness analysis at finalize)
 # ---------------------------------------------------------------------------
 
 def _fmt_pct(value: float | None) -> str:
@@ -290,60 +180,26 @@ fallback_tranche_plan = _fallback_tranche_plan  # public alias for main.py final
 def _fallback_invalidation(snap: FinancialSnapshot) -> list[str]:
     return [
         "Gross margin declines for 2 consecutive quarters (pricing power breaking)",
-        f"Net Debt/EBITDA rises above 4.0x or interest coverage falls below 3.0x",
+        "Net Debt/EBITDA rises above 4.0x or interest coverage falls below 3.0x",
         "A major customer segment publicly churns or switching-cost evidence reverses",
         "ROIC stays below WACC for 4 consecutive quarters",
     ]
 
 
-def analyze_ticker(snap: FinancialSnapshot, use_llm: bool = True) -> dict:
-    """Produce one Daily_Log row for a snapshot.
+def analyze_ticker(snap: FinancialSnapshot) -> dict:
+    """Produce one Daily_Log row for a snapshot — rule-based only.
 
-    use_llm=False (the default hybrid flow) skips the paid API entirely — the
-    narrative fields become placeholders until a ZCode analysis JSON is merged
-    by `main.py --mode finalize`.
+    Narrative fields are placeholders; a ZCode session replaces them when its
+    analysis JSON is merged by `python main.py --mode finalize`.
     """
-    verdict_h, reasons = heuristic_verdict(snap)
+    verdict, reasons = heuristic_verdict(snap)
     flags = balance_sheet_flags(snap)
-
-    llm: dict = {}
-    if use_llm:
-        user_prompt = (
-            "Analyze this fallen-angel candidate. Today: "
-            f"{datetime.now(timezone.utc):%Y-%m-%d}. Framework thresholds: "
-            f"Net Debt/EBITDA flag > {config.MAX_NET_DEBT_EBITDA}x, interest coverage must be > "
-            f"{config.MIN_INTEREST_COVERAGE}x, buy only at >= {config.MIN_DISCOUNT_FOR_BUY:.0%} discount.\n"
-            f"QUANTITATIVE FACTS:\n{json.dumps(snap.to_prompt_dict(), indent=2)}\n"
-            f"RULE-BASED FLAGS (verify, then agree or refute): {reasons or 'none'}"
-        )
-        llm = call_llm_json(SYSTEM_PROMPT, user_prompt) or {}
-
-    if use_llm and not llm:
-        note = "(Rule-based analysis — configure an LLM key for narrative depth.)"
-    elif not use_llm:
-        note = (
-            f"(Data collected — deep-dive pending. A ZCode session should analyze "
-            f"data/pending/daily-{snap.as_of}.json, then run `python main.py --mode finalize`.)"
-        )
-    else:
-        note = ""
-
-    verdict = llm.get("verdict", verdict_h)
-    if verdict not in VALID_VERDICTS:
-        verdict = verdict_h
     action = strategic_action(verdict, snap)
-    headwinds = llm.get("core_headwinds") or "; ".join(reasons) or "n/a"
-    deep_dive = llm.get("deep_dive") or _fallback_deep_dive(snap, verdict, flags, note)
-    tranche = llm.get("tranche_plan") or _fallback_tranche_plan()
-    invalidation = llm.get("invalidation_criteria") or _fallback_invalidation(snap)
-    if isinstance(invalidation, str):
-        invalidation = [invalidation]
-    cap = llm.get("suggested_position_cap_pct")
-    try:
-        cap = float(cap)
-        cap = min(max(cap, config.POSITION_CAP_MIN), config.POSITION_CAP_MAX)
-    except (TypeError, ValueError):
-        cap = config.POSITION_CAP_MIN
+    note = (
+        f"(Data collected — deep-dive pending. A ZCode session should analyze "
+        f"data/pending/daily-{snap.as_of}.json, then run `python main.py --mode finalize`.)"
+    )
+    invalidation = _fallback_invalidation(snap)
 
     def pct_cell(x: float | None) -> str:
         return f"{x * 100:.2f}" if x is not None else ""
@@ -367,14 +223,14 @@ def analyze_ticker(snap: FinancialSnapshot, use_llm: bool = True) -> dict:
         ),
         "FCF Yield (%)": pct_cell(snap.fcf_yield),
         "Moat Impairment Verdict": verdict,
-        "Core Headwinds / Catalyst": headwinds,
+        "Core Headwinds / Catalyst": "; ".join(reasons) or "n/a",
         "Strategic Action": action,
-        "Headwind Category": llm.get("headwind_category", ""),
-        "Moat Sources": ", ".join(llm.get("moat_sources", []) or []),
-        "Deep-Dive": deep_dive,
-        "Tranche Plan": tranche,
+        "Headwind Category": "",
+        "Moat Sources": "",
+        "Deep-Dive": _fallback_deep_dive(snap, verdict, flags, note),
+        "Tranche Plan": _fallback_tranche_plan(),
         "Invalidation Criteria": " | ".join(invalidation),
-        "Suggested Position Cap (%)": cap,
+        "Suggested Position Cap (%)": config.POSITION_CAP_MIN,
         "Data Warnings": "; ".join(snap.warnings),
     }
 
@@ -446,65 +302,12 @@ def select_top_picks(recent_rows: list[dict], limit: int = 2) -> list[dict]:
     return [row for _, row in candidates[:limit]]
 
 
-def generate_pick_narrative(pick_row: dict, use_llm: bool = True) -> dict:
-    """Weekly deep-dive for one top pick (falls back to logged text without LLM)."""
-    if not use_llm:
-        return {
-            "why_moat_intact": pick_row.get("Deep-Dive", ""),
-            "market_overreaction": pick_row.get("Core Headwinds / Catalyst", ""),
-            "tranche_strategy": pick_row.get("Tranche Plan", "") or _fallback_tranche_plan(),
-            "invalidation_criteria": [
-                c for c in str(pick_row.get("Invalidation Criteria", "")).split(" | ") if c
-            ] or _fallback_invalidation(FinancialSnapshot(ticker=pick_row.get("Ticker", "?"))),
-        }
-    user_prompt = (
-        "This candidate passed the weekly Fallen Angel screen. Write the weekly digest "
-        "entry for an investor email. Sections inside the JSON: 'why_moat_intact' (why the "
-        "fortress still stands, 3-4 sentences), 'market_overreaction' (how exactly the "
-        "market is overreacting, 2-3 sentences), 'tranche_strategy' (concrete split-entry "
-        f"plan, first tranche {config.FIRST_TRANCHE_MIN}-{config.FIRST_TRANCHE_MAX}% of the "
-        "full position), 'invalidation_criteria' (array of 3+ specific falsifiers).\n"
-        f"DATA:\n{json.dumps({k: pick_row.get(k, '') for k in COLUMNS}, indent=2)}"
-    )
-    weekly_schema = (
-        'Respond with ONLY JSON: {"why_moat_intact": "...", "market_overreaction": "...", '
-        '"tranche_strategy": "...", "invalidation_criteria": ["..."]}'
-    )
-    llm = call_llm_json(SYSTEM_PROMPT + "\n\n" + weekly_schema, user_prompt) or {}
-    return {
-        "why_moat_intact": llm.get("why_moat_intact") or pick_row.get("Deep-Dive", ""),
-        "market_overreaction": llm.get("market_overreaction")
-        or pick_row.get("Core Headwinds / Catalyst", ""),
-        "tranche_strategy": llm.get("tranche_strategy")
-        or pick_row.get("Tranche Plan", "") or _fallback_tranche_plan(),
-        "invalidation_criteria": llm.get("invalidation_criteria")
-        or [c for c in str(pick_row.get("Invalidation Criteria", "")).split(" | ") if c]
-        or _fallback_invalidation(FinancialSnapshot(ticker=pick_row.get("Ticker", "?"))),
-    }
+def generate_mini_lesson() -> dict:
+    """Rotating Buffett-style lesson seed (title + brief) from config.
 
-
-def generate_mini_lesson(use_llm: bool = True) -> dict:
-    """Rotating Buffett-style lesson; the LLM expands the stored brief."""
+    The ZCode harness expands this seed into the final Thai lesson for the
+    weekly digest; the seed itself is the fallback when no analysis arrives.
+    """
     week_index = datetime.now(timezone.utc).isocalendar()[1]
     topic = config.MINI_LESSON_TOPICS[week_index % len(config.MINI_LESSON_TOPICS)]
-    if not use_llm or not config.llm_ready():
-        return {"title": topic["title"], "body": topic["brief"]}
-    user_prompt = (
-        f"Write this week's mini-lesson for a quality-value investing email.\n"
-        f"Title: {topic['title']}\nSeed material: {topic['brief']}\n"
-        "Expand to 150-220 words in a direct, practical Buffett-letter tone. "
-        "End with one actionable takeaway sentence. Plain text only, no markdown."
-    )
-    if config.llm_ready():
-        provider = {
-            "anthropic": _call_anthropic,
-            "openai": _call_openai,
-            "gemini": _call_gemini,
-        }[config.LLM_PROVIDER]
-        try:
-            text = provider(SYSTEM_PROMPT, user_prompt).strip()
-            if len(text) > 200:
-                return {"title": topic["title"], "body": text}
-        except Exception as exc:  # noqa: BLE001
-            print(f"[analyzer] mini-lesson LLM failed: {exc}")
     return {"title": topic["title"], "body": topic["brief"]}

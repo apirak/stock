@@ -31,25 +31,6 @@ PENDING_DIR = DATA_DIR / "pending"     # written by --mode daily/weekly
 ANALYSIS_DIR = DATA_DIR / "analysis"   # written by the ZCode harness session, merged by --mode finalize
 
 # ---------------------------------------------------------------------------
-# LLM provider for the Moat Impairment Test ("anthropic" | "openai" | "gemini" | "none")
-# With "none" (or a missing key) the system degrades to deterministic
-# rule-based analysis so the pipeline never crashes.
-# ---------------------------------------------------------------------------
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "none").lower()
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "")  # empty -> provider default
-LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "90"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-
-DEFAULT_LLM_MODELS = {
-    "anthropic": "claude-sonnet-4-20250514",
-    "openai": "gpt-4o-mini",
-    "gemini": "gemini-2.0-flash",
-}
-
-# ---------------------------------------------------------------------------
 # Email (Gmail SMTP with App Password) & Discord webhook
 # ---------------------------------------------------------------------------
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -59,10 +40,11 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # 16-char Gmail App Password
 EMAIL_FROM = os.getenv("EMAIL_FROM", SMTP_USER)
 EMAIL_TO = [a.strip() for a in os.getenv("EMAIL_TO", "").split(",") if a.strip()]
 
-# Discord server webhook (Server Settings → Integrations → Webhooks).
-# Treated as a secret: anyone holding the URL can post to the channel.
+# Discord server webhooks (Server Settings → Integrations → Webhooks).
+# Treated as secrets: anyone holding a URL can post to the channel.
 # Messages display the webhook's own name/avatar unless overridden here.
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")                # daily summary channel
+DISCORD_WEBHOOK_URL_WEEKLY = os.getenv("DISCORD_WEBHOOK_URL_WEEKLY", "")  # weekly digest channel
 DISCORD_USERNAME = os.getenv("DISCORD_USERNAME", "")
 
 # ---------------------------------------------------------------------------
@@ -252,17 +234,14 @@ MINI_LESSON_TOPICS: list[dict[str, str]] = [
 ]
 
 
-def llm_ready() -> bool:
-    return bool(
-        (LLM_PROVIDER == "anthropic" and ANTHROPIC_API_KEY)
-        or (LLM_PROVIDER == "openai" and OPENAI_API_KEY)
-        or (LLM_PROVIDER == "gemini" and GEMINI_API_KEY)
-    )
-
-
 def smtp_ready() -> bool:
     return bool(SMTP_USER and SMTP_PASSWORD and EMAIL_TO)
 
 
 def discord_ready() -> bool:
     return bool(DISCORD_WEBHOOK_URL)
+
+
+def discord_weekly_ready() -> bool:
+    """Weekly channel; falls back to the daily webhook when no separate URL."""
+    return bool(DISCORD_WEBHOOK_URL_WEEKLY or DISCORD_WEBHOOK_URL)
