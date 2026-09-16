@@ -30,6 +30,7 @@ REPO_ROOT = BASE_DIR.parent                          # .../stock
 STOCK_KNOWLEDGE_DIR = REPO_ROOT / "watchlist" / "stock_knowledge"
 INDEX_PATH = STOCK_KNOWLEDGE_DIR / "index.md"        # universe: the source of truth
 LEDGER_PATH = STOCK_KNOWLEDGE_DIR / "ledger.md"      # append-only transactions
+GUIDELINE_PATH = STOCK_KNOWLEDGE_DIR / "_GUIDELINE.md"  # per-ticker format contract
 PERSONA_PATH = REPO_ROOT / "charactor" / "feb" / "persona.md"
 FALLING_ANGLE_DOC = REPO_ROOT / "knowledge" / "falling_angle.md"
 

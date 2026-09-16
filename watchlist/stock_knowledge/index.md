@@ -2,6 +2,9 @@
 
 Last updated: 2026-09-16
 
+> 📐 **ก่อนสร้าง/แก้ไฟล์หุ้น อ่าน [_GUIDELINE.md](_GUIDELINE.md) ก่อนทุกครั้ง** —
+> เป็นสัญญา format ของ folder นี้ (โครงสร้างไฟล์, หัวข้อบังคับ, FV tag, กติกาข่าว)
+
 This file is the **single source of truth** for the research universe.
 Both bots (Daily / Weekly) read this table to decide what to track.
 Status changes (buy/sell) are made by the user via ZCode sessions — never by the bots.

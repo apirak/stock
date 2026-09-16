@@ -45,6 +45,7 @@ class TestDefaults:
         assert config.INDEX_PATH.name == "index.md"
         assert config.INDEX_PATH.parent.name == "stock_knowledge"
         assert config.LEDGER_PATH.name == "ledger.md"
+        assert config.GUIDELINE_PATH.name == "_GUIDELINE.md"
         assert config.DAILY_REPORT_DIR.name == "_daily"
         assert config.WEEKLY_REPORT_DIR.name == "weekly"
         assert config.FALLING_ANGLE_DOC.name == "falling_angle.md"

@@ -4,8 +4,8 @@
 
 > **เอกสารสามชุดมีคนละหน้าที่:** ไฟล์นี้อธิบาย *โครงสร้างโค้ดและวิธีเรียกใช้แต่ละฟังก์ชัน*
 > (สำหรับ bot/คนที่จะมาใช้ต่อ) | [knowledge/falling_angle.md](../knowledge/falling_angle.md)
-> คือ *หลักการลงทุน* ที่ bot ต้องใช้ตัดสิน | [plan/stock.md](../plan/stock.md) คือ *spec ของ
-> knowledge base* (format ไฟล์ต่อหุ้น, กติกาภาษา, valuation layers)
+> คือ *หลักการลงทุน* ที่ bot ต้องใช้ตัดสิน | [_GUIDELINE.md](../watchlist/stock_knowledge/_GUIDELINE.md)
+> คือ *format การเก็บไฟล์หุ้น* ใน stock_knowledge/ (spec เต็มอยู่ที่ plan/stock.md)
 
 ---
 
@@ -57,7 +57,7 @@ truth) — ตัวไหน Market เป็น SET/ไทย (SPCX, KKP, XIAO
 
 ### `config.py` — ศูนย์รวมค่าตั้ง (ไม่มี logic)
 
-- **Paths:** `INDEX_PATH`, `LEDGER_PATH`, `STOCK_KNOWLEDGE_DIR` (knowledge base) ·
+- **Paths:** `INDEX_PATH`, `LEDGER_PATH`, `GUIDELINE_PATH` (format contract), `STOCK_KNOWLEDGE_DIR` (knowledge base) ·
   `DAILY_REPORT_DIR` = `watchlist/_daily/`, `WEEKLY_REPORT_DIR` = `weekly/` ·
   `CSV_LOG_PATH`, `PENDING_DIR`, `ANALYSIS_DIR` (runtime, ใต้ src/) ·
   `PERSONA_PATH` (charactor/feb/persona.md), `FALLING_ANGLE_DOC` (knowledge/falling_angle.md)

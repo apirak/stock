@@ -9,6 +9,7 @@
 | ทาง | คืออะไร | ใครเขียน |
 |---|---|---|
 | `watchlist/stock_knowledge/index.md` | **Universe** — ตารางหุ้นทั้งหมด (Status: Owned/Watch) — single source of truth | ผู้ใช้ผ่าน ZCode + bots อัปเดต Last Review |
+| `watchlist/stock_knowledge/_GUIDELINE.md` | 📐 **สัญญา format** ของไฟล์หุ้นทุกตัว — bot/คน ต้องอ่านก่อนสร้าง/แก้ไฟล์ | คน + sessions |
 | `watchlist/stock_knowledge/own/<TICKER>/` | research ต่อหุ้นที่ถือ (`_overall`, `_current_status`, `_news_YYYY`) | bots (daily/weekly/session) |
 | `watchlist/stock_knowledge/watchlist/<TICKER>/` | research ต่อหุ้นที่ดูไว้เฉย ๆ | bots |
 | `watchlist/stock_knowledge/ledger.md` | **ประวัติซื้อขาย append-only** — พอร์ต derive จากไฟล์นี้ | เฉพาะเมื่อผู้ใช้บอกเอง |
@@ -17,7 +18,7 @@
 | `knowledge/` | "หนังสือ" หลักการลงทุน — [`falling_angle.md`](knowledge/falling_angle.md) คือแกนที่ทุก bot ใช้ | คน + sessions |
 | `src/` | **โค้ด + tests ทั้งหมด** — วิธีเรียกใช้แต่ละฟังก์ชันอยู่ที่ [`src/README.md`](src/README.md) | — |
 | `plan/` | spec ต้นทาง (stock.md = VI system spec, token-efficient plan = กลยุทธ์ข้อมูลฟรี) | — |
-| `charactor/feb/` | บุคลิกของ Feb (กติกาการรายงาน, โทนเสียง) | — |
+| `charactor/` | ตัวละครทั้งหมด (ยังใช้งานทุกตัว) — **Feb** 🌷 ผู้รายงาน Watch list ของระบบนี้ · Jan (ตัวก่อนหน้า + รูป falling-angel 3 สถานะ) · Belldandy / Urd / Skuld (เทพธิดา Oh My Goddess) | ผู้ใช้ |
 
 ## Bot ประจำวัน / ประจำสัปดาห์ (ZCode Automations)
 
