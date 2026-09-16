@@ -2,13 +2,11 @@
 .env
 *.pem
 
-# Runtime data & generated previews (data/daily_log.csv is the tracking
+# Runtime data & generated previews (src/data/daily_log.csv is the tracking
 # database — it lives on disk; keep your own backup if it matters to you)
-fallen_angel_tracker/data/
-fallen_angel_tracker/output/
+src/data/
+src/output/
 __pycache__/
 *.pyc
 .venv/
-
-# runtime logs from the watchlist daily agent
-knowledge/stock/_daily/*.log
+.pytest_cache/
