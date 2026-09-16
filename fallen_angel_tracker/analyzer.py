@@ -31,6 +31,9 @@ ACTION_ACCUMULATE = "Accumulate 1st Tranche"
 ACTION_WAIT = "Wait for Next Earnings"
 ACTION_AVOID = "Avoid"
 
+# Ranking used for drift detection: higher = healthier
+VERDICT_RANK = {VERDICT_PASS: 2, VERDICT_WATCH: 1, VERDICT_FAIL: 0}
+
 # Daily_Log column schema (single source of truth, imported by storage/mailer)
 COLUMNS = [
     "Date",
@@ -122,6 +125,27 @@ def heuristic_verdict(snap: FinancialSnapshot) -> tuple[str, list[str]]:
     if discount is not None and discount >= config.MIN_DISCOUNT_FOR_BUY:
         reasons.append(f"discount {discount:.0%} but flags present")
     return VERDICT_WATCH, reasons or ["insufficient edge on current numbers"]
+
+
+def verdict_drift(history_rows: list[dict], latest_verdict: str) -> str:
+    """Compare the latest verdict against the best verdict earlier in history.
+
+    Returns '🔼 Upgrade' (e.g. Watch -> Pass), '🔽 Downgrade' (e.g. Pass -> Watch),
+    or '' when unchanged/unknown. Feeds the weekly tracking table — possible
+    only because daily runs accumulate verdict history in the CSV.
+    """
+    cur = VERDICT_RANK.get(str(latest_verdict).strip(), 1)
+    if not history_rows:
+        return ""
+    best = max(
+        VERDICT_RANK.get(str(r.get("Moat Impairment Verdict", "")).strip(), cur)
+        for r in history_rows
+    )
+    if cur > best:
+        return "🔼 Upgrade"
+    if cur < best:
+        return "🔽 Downgrade"
+    return ""
 
 
 def strategic_action(verdict: str, snap: FinancialSnapshot) -> str:

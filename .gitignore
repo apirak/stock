@@ -9,3 +9,6 @@ fallen_angel_tracker/output/
 __pycache__/
 *.pyc
 .venv/
+
+# runtime logs from the watchlist daily agent
+knowledge/stock/_daily/*.log

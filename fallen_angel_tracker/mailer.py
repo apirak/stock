@@ -122,7 +122,7 @@ def _tracking_table(tracking: list[dict]) -> str:
     header = "".join(
         f'<th style="{_TH_CSS}">{h}</th>'
         for h in ["Ticker", "วันที่แนะนำ", "ราคาตอนแนะนำ", "ราคาปัจจุบัน", "ผลตอบแทน",
-                  "1M", "3M", "6M", "Verdict ล่าสุด", "สัญญาณเตือน"]
+                  "1M", "3M", "6M", "ส่วนลด (7 วัน)", "Drift", "Verdict ล่าสุด", "สัญญาณเตือน"]
     )
     body_rows = []
     for t in tracking:
@@ -143,6 +143,8 @@ def _tracking_table(tracking: list[dict]) -> str:
             f'<td style="{_TD_CSS}">{fmt(t["return_1m"])}</td>'
             f'<td style="{_TD_CSS}">{fmt(t["return_3m"])}</td>'
             f'<td style="{_TD_CSS}">{fmt(t["return_6m"])}</td>'
+            f'<td style="{_TD_CSS}">{_esc(t.get("discount_trend") or "—")}</td>'
+            f'<td style="{_TD_CSS}">{_esc(t.get("drift") or "—")}</td>'
             f'<td style="{_TD_CSS}">{_esc(t["latest_verdict"])}</td>'
             f'<td style="{_TD_CSS};color:#c1121f">{_esc(t["flag"])}</td></tr>'
         )

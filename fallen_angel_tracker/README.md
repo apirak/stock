@@ -135,7 +135,8 @@ fallen_angel_tracker/
 | `run_daily(args)` | ลูป tickers → `fetch_snapshot` → `analyze_ticker` → append CSV + MD → เขียน pending file |
 | `run_weekly(args)` | อ่าน log → `select_top_picks` + `build_tracking` → เขียน weekly pending + MD fallback |
 | `run_finalize(args)` | แยก daily/weekly → merge analysis JSON ลง CSV (validate verdict, clamp position cap, recompute action) → regenerate report → (weekly) ส่งอีเมล |
-| `build_tracking(all_rows)` | ต่อ ticker: หา anchor (คำแนะนำแรก) → ดึงราคาปัจจุบัน → return ตั้งแต่แนะนำ + 1M/3M/6M + flag ความเสื่อม |
+| `build_tracking(all_rows)` | ต่อ ticker: หา anchor (คำแนะนำแรก) → ดึงราคาปัจจุบัน → return ตั้งแต่แนะนำ + 1M/3M/6M + **verdict drift** (🔼/🔽 เทียบ best-in-history ผ่าน `analyzer.verdict_drift`) + **แนวโน้มส่วนลด 7 วัน** |
+| `_coverage_notes(all_rows)` | เช็ควันจันทร์–ศุกร์ 7 วันล่าสุดที่ไม่มีแถว daily → note เตือนใน digest ว่าประวัติมีช่องว่างวันไหน |
 | `_build_digest(payload, analysis)` | ประกอบ digest: narrative จาก ZCode ถ้ามี ไม่งั้น fallback จากข้อความใน log |
 | `_deterioration_flag(latest) -> str` | สัญญาณเตือนภาษาไทย: verdict FAIL / leverage เกิน / coverage ต่ำกว่าเกณฑ์ / Watch |
 

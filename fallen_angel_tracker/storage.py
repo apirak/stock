@@ -193,8 +193,8 @@ def _weekly_tracking_table(tracking: list[dict]) -> list[str]:
     if not tracking:
         return ["_ยังไม่มีคำแนะนำที่บันทึกไว้ — รัน daily pipeline ก่อน_", ""]
     lines = [
-        "| Ticker | วันที่แนะนำ | ราคาตอนแนะนำ | ราคาปัจจุบัน | ผลตอบแทน | 1M | 3M | 6M | Verdict ล่าสุด | สัญญาณเตือน |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| Ticker | วันที่แนะนำ | ราคาตอนแนะนำ | ราคาปัจจุบัน | ผลตอบแทน | 1M | 3M | 6M | ส่วนลด (7 วัน) | Drift | Verdict ล่าสุด | สัญญาณเตือน |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for t in tracking:
         tv_url = chart_urls(t["ticker"])["TradingView"]
@@ -202,6 +202,7 @@ def _weekly_tracking_table(tracking: list[dict]) -> list[str]:
             f"| **[{t['ticker']}]({tv_url})** | {t['rec_date']} | ${t['rec_price']} | ${t['price']} "
             f"| {_fmt_pct_return(t['return_pct'])} | {_fmt_pct_return(t['return_1m'])} "
             f"| {_fmt_pct_return(t['return_3m'])} | {_fmt_pct_return(t['return_6m'])} "
+            f"| {t.get('discount_trend') or '—'} | {t.get('drift') or '—'} "
             f"| {t['latest_verdict']} | {t['flag'] or '—'} |"
         )
     lines.append("")

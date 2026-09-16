@@ -43,16 +43,20 @@ def _tracking_block(tracking: list[dict]) -> str:
     """Monospaced compact table (English headers keep code-block alignment)."""
     if not tracking:
         return "ยังไม่มี position ให้ติดตาม"
-    lines = ["TICKER  RET     1M      3M      6M      VERDICT"]
+    lines = ["TICKER  RET     1M      3M      6M      DISC(7D)      DRIFT  VERDICT"]
     for t in tracking:
         ret = "n/a" if t["return_pct"] is None else f"{t['return_pct']:+.1f}%"
 
         def fmt(x):
             return "n/a" if x is None else f"{x:+.1f}%"
 
+        disc_now = t.get("discount_now") or "n/a"
+        disc_delta = t.get("discount_delta") or ""
+        disc = f"{disc_now}({disc_delta})" if disc_delta else disc_now
+        drift = {"🔼 Upgrade": "↑", "🔽 Downgrade": "↓"}.get(t.get("drift", ""), "·")
         lines.append(
             f"{t['ticker']:<7}{ret:<8}{fmt(t['return_1m']):<8}{fmt(t['return_3m']):<8}"
-            f"{fmt(t['return_6m']):<8}{_trunc(t['latest_verdict'], 24)}"
+            f"{fmt(t['return_6m']):<8}{disc:<14}{drift:<7}{_trunc(t['latest_verdict'], 22)}"
         )
     return "\n".join(lines)
 

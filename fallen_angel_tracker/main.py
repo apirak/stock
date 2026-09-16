@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import analyzer
 import config
@@ -224,9 +224,23 @@ def _deterioration_flag(latest: dict) -> str:
 
 
 def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
-    """Return (tracking_rows, notes). Anchor = first actionable row per ticker."""
+    """Return (tracking_rows, notes). Anchor = first actionable row per ticker.
+
+    Uses the accumulated daily history (rows_by_ticker) to compute verdict
+    drift and the 7-day discount trend — both impossible without daily rows.
+    """
     firsts = storage.first_recommendation_by_ticker(all_rows)
-    latest_by_ticker = storage.dedupe_latest_by_ticker(all_rows)
+    rows_by_ticker: dict[str, list[dict]] = {}
+    for row in all_rows:
+        rows_by_ticker.setdefault(str(row.get("Ticker", "")).upper(), []).append(row)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).date()
+
+    def row_date(row: dict):
+        try:
+            return datetime.strptime(str(row.get("Date", ""))[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
     tracking: list[dict] = []
     notes: list[str] = []
     for ticker, first in sorted(firsts.items()):
@@ -235,7 +249,22 @@ def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
         except Exception as exc:  # noqa: BLE001
             notes.append(f"{ticker}: ดึงราคาไม่สำเร็จ ({exc})")
             continue
-        latest = latest_by_ticker.get(ticker, first)
+        ticker_rows = rows_by_ticker.get(ticker, [])
+        latest = ticker_rows[-1] if ticker_rows else first
+        history = ticker_rows[:-1]  # everything before the latest row
+        drift = analyzer.verdict_drift(history, str(latest.get("Moat Impairment Verdict", "")))
+
+        week_rows = [r for r in ticker_rows if (rd := row_date(r)) and rd >= cutoff]
+        d_latest = storage.to_float(latest.get("Discount (%)"))
+        d_start = storage.to_float(week_rows[0].get("Discount (%)")) if week_rows else None
+        if d_latest is None:
+            discount_trend, discount_now, discount_delta = "", "", ""
+        elif d_start is None or abs(d_latest - d_start) < 0.05:
+            discount_trend, discount_now, discount_delta = f"{d_latest:.1f}%", f"{d_latest:.1f}", ""
+        else:
+            discount_trend = f"{d_start:.1f}% → {d_latest:.1f}% (Δ{d_latest - d_start:+.1f})"
+            discount_now, discount_delta = f"{d_latest:.1f}", f"{d_latest - d_start:+.1f}"
+
         rec_price = storage.to_float(first.get("Market Price ($)"))
         price = stats["price"] or rec_price
         return_pct = (price / rec_price - 1) * 100 if price and rec_price else None
@@ -249,10 +278,32 @@ def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
             "return_1m": stats["return_1m"] * 100 if stats["return_1m"] is not None else None,
             "return_3m": stats["return_3m"] * 100 if stats["return_3m"] is not None else None,
             "return_6m": stats["return_6m"] * 100 if stats["return_6m"] is not None else None,
+            "discount_trend": discount_trend,
+            "discount_now": discount_now,
+            "discount_delta": discount_delta,
+            "drift": drift,
             "latest_verdict": latest.get("Moat Impairment Verdict", "n/a"),
             "flag": _deterioration_flag(latest),
         })
     return tracking, notes
+
+
+def _coverage_notes(all_rows: list[dict], days: int = 7) -> list[str]:
+    """Flag weekdays in the last `days` days with no daily rows — the weekly
+    digest then knows where the accumulated history has gaps."""
+    have = {str(r.get("Date", ""))[:10] for r in all_rows}
+    today = datetime.now(timezone.utc).date()
+    thai_days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"]
+    missing = []
+    for i in range(1, days + 1):
+        d = today - timedelta(days=i)
+        if d.weekday() < 5 and d.isoformat() not in have:
+            missing.append(f"{d.isoformat()} ({thai_days[d.weekday()]})")
+    if not missing:
+        return []
+    shown = ", ".join(missing[:5]) + (f" และอีก {len(missing) - 5} วัน" if len(missing) > 5 else "")
+    return [f"ข้อมูล daily ขาดวัน: {shown} — อาจเกิดจากเครื่องปิด/automation ไม่ได้รัน "
+            "หรือเป็นวันหยุดตลาดสหรัฐ"]
 
 
 def _build_digest(payload: dict, analysis: dict) -> dict:
@@ -304,6 +355,7 @@ def run_weekly(args: argparse.Namespace) -> int:
     tracking, notes = ([], [])
     if all_rows:
         tracking, notes = build_tracking(all_rows)
+        notes = _coverage_notes(all_rows) + notes
 
     payload = {
         "week": week,
