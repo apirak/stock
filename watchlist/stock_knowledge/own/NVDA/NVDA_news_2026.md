@@ -92,4 +92,16 @@ Only genuinely material events (earnings, guidance, products, regulation, M&A, c
 - **Why It Matters:** Anchors the external-valuation range for comparison against Hermes independent Bear/Base/Bull.
 
 ---
+## 2026-09-16 — Customer concentration: >25% of revenue from Taiwan-based customers; $5.5B AI-cloud deal with IREN (miner/neocloud)
+- **Source:** Yahoo Finance feed (Surmount/IBD reporting)
+- **URL:** (yfinance headline — link not captured)
+- **Category:** Industry (customer concentration) / M&A (IREN deal)
+- **Summary:** Reported that more than a quarter of Nvidia's revenue now comes from customers based in Taiwan. Separately, Nvidia struck a US$5.5B AI-cloud deal with IREN, a bitcoin miner converting to neocloud — evidence Nvidia is selling into lower-credit-quality neocloud demand alongside hyperscalers.
+- **Impact:** Mixed — revenue diversification into new demand pockets, but rising counterparty/customer concentration risk
+- **Time Horizon:** Medium
+- **Thesis Impact:** No Material Change yet — a watch-item on revenue quality if neocloud share keeps growing
+- **Intrinsic Value Impact:** No Material Change — depends on whether neocloud deals convert to sustained revenue vs cyclical one-offs
+- **Why It Matters:** Customer concentration plus weaker-credit neocloud buyers is precisely how an AI capex cycle turns into receivables/write-down risk. Filing-level revenue-by-customer disclosures should be monitored.
+
+
 *Excluded as noise: daily price moves, "stock falls after earnings" pattern commentary, minor product SKUs, and speculative price-prediction articles.*

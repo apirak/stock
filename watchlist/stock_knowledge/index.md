@@ -11,20 +11,20 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 
 | Ticker | Company | Market | Status | Research Priority | Opportunity Status | Last Review |
 |---|---|---|---|---|---|---|
-| NVDA | NVIDIA Corp | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
+| NVDA | NVIDIA Corp | NASDAQ (US) | Owned | High | TBD | 2026-09-17 |
 | MSFT | Microsoft Corp | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
 | GOOGL | Alphabet Inc (Class A) | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
 | NFLX | Netflix Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-08-29 |
 | GDS | GDS Holdings (ADR) | NASDAQ (US/China) | Owned | Medium | TBD | 2026-08-29 |
-| IREN | IREN Ltd | NASDAQ (US) | Owned | Medium | TBD | 2026-08-29 |
-| TSLA | Tesla Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-08-29 |
+| IREN | IREN Ltd | NASDAQ (US) | Owned | Medium | TBD | 2026-09-17 |
+| TSLA | Tesla Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-16 |
 | AMD | Advanced Micro Devices | NASDAQ (US) | Owned | Medium | TBD | 2026-08-29 |
-| AAPL | Apple Inc | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
+| AAPL | Apple Inc | NASDAQ (US) | Watch | Medium | TBD | 2026-09-16 |
 | AMZN | Amazon.com Inc | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | META | Meta Platforms | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
-| SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-08-29 |
+| SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-09-16 |
 | MU | Micron Technology | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
-| INTC | Intel Corp | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
+| INTC | Intel Corp | NASDAQ (US) | Watch | Medium | TBD | 2026-09-16 |
 | BABA | Alibaba Group (ADR) | NYSE (China) | Watch | Medium | TBD | 2026-08-29 |
 | BIDU | Baidu Inc (ADR) | NASDAQ (China) | Watch | Low | TBD | 2026-08-29 |
 | BEKE | KE Holdings (ADR) | NYSE (China) | Watch | Low | TBD | 2026-08-29 |

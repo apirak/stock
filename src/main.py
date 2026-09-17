@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -33,6 +34,15 @@ from mailer import build_weekly_email, send_email
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+
+def _rel(path) -> str:
+    """Pretty path for logs: relative to the repo root when possible."""
+    try:
+        return str(Path(path).relative_to(config.REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _week_label() -> str:
@@ -121,13 +131,13 @@ def run_daily(args: argparse.Namespace) -> int:
 
     print("[daily] " + storage.append_daily_rows(rows))
     report_path = storage.write_daily_report(rows)
-    print(f"[daily] markdown report: {report_path.relative_to(config.BASE_DIR)}")
+    print(f"[daily] markdown report: {_rel(report_path)}")
 
     if pending:
         pending_path = config.PENDING_DIR / f"daily-{today}.json"
         _write_json(pending_path, {"date": today, "tickers": pending})
         print(
-            f"[daily] pending analysis file: {pending_path.relative_to(config.BASE_DIR)}\n"
+            f"[daily] pending analysis file: {_rel(pending_path)}\n"
             f"[daily] next step (ZCode harness): analyze it and write "
             f"src/data/analysis/daily-{today}.json, then run: python main.py --mode finalize"
         )
@@ -143,11 +153,11 @@ def _finalize_daily(args: argparse.Namespace) -> int:
     pending_path = config.PENDING_DIR / f"daily-{date}.json"
     analysis_path = config.ANALYSIS_DIR / f"daily-{date}.json"
     if not pending_path.exists():
-        print(f"[finalize] no pending file: {pending_path.relative_to(config.BASE_DIR)}")
+        print(f"[finalize] no pending file: {_rel(pending_path)}")
         return 1
     if not analysis_path.exists():
         print(
-            f"[finalize] no analysis file yet: {analysis_path.relative_to(config.BASE_DIR)}\n"
+            f"[finalize] no analysis file yet: {_rel(analysis_path)}\n"
             "[finalize] run the ZCode analysis step first, or re-run finalize afterwards."
         )
         return 1
@@ -203,7 +213,7 @@ def _finalize_daily(args: argparse.Namespace) -> int:
     print(f"[finalize] merged {changed} row(s) for {date}")
     for row in rows:
         _print_row_summary(row)
-    print(f"[finalize] markdown report regenerated: {report_path.relative_to(config.BASE_DIR)}")
+    print(f"[finalize] markdown report regenerated: {_rel(report_path)}")
     discord_failed = not discord_notifier.send_daily_summary(rows) and config.discord_ready()
     if discord_failed:
         print("[finalize] ERROR: daily Discord delivery failed")
@@ -379,9 +389,9 @@ def run_weekly(args: argparse.Namespace) -> int:
     _write_json(pending_path, payload)
     for pick in picks:
         print(f"  candidate: {pick['Ticker']} ({pick['Moat Impairment Verdict']})")
-    print(f"[weekly] markdown digest (fallback text): {report_path.relative_to(config.BASE_DIR)}")
+    print(f"[weekly] markdown digest (fallback text): {_rel(report_path)}")
     print(
-        f"[weekly] pending narrative file: {pending_path.relative_to(config.BASE_DIR)}\n"
+        f"[weekly] pending narrative file: {_rel(pending_path)}\n"
         f"[weekly] next step (ZCode harness): write src/data/analysis/weekly-{week}.json, "
         f"then run: python main.py --mode finalize --weekly"
     )
@@ -393,7 +403,7 @@ def _finalize_weekly(args: argparse.Namespace) -> int:
     pending_path = config.PENDING_DIR / f"weekly-{week}.json"
     analysis_path = config.ANALYSIS_DIR / f"weekly-{week}.json"
     if not pending_path.exists():
-        print(f"[finalize] no pending file: {pending_path.relative_to(config.BASE_DIR)} — run --mode weekly first")
+        print(f"[finalize] no pending file: {_rel(pending_path)} — run --mode weekly first")
         return 1
     payload = json.loads(pending_path.read_text(encoding="utf-8"))
     analysis = {}
@@ -401,7 +411,7 @@ def _finalize_weekly(args: argparse.Namespace) -> int:
         analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
     else:
         print(
-            f"[finalize] note: no analysis file ({analysis_path.relative_to(config.BASE_DIR)}); "
+            f"[finalize] note: no analysis file ({_rel(analysis_path)}); "
             "rendering with fallback text"
         )
 
@@ -417,7 +427,7 @@ def _finalize_weekly(args: argparse.Namespace) -> int:
         print(f"[finalize] subject would be: {subject}")
         return 0
 
-    print(f"[finalize] markdown digest: {md_path.relative_to(config.BASE_DIR)}")
+    print(f"[finalize] markdown digest: {_rel(md_path)}")
     email_failed = not send_email(subject, html_body) and config.smtp_ready()
     discord_failed = not discord_notifier.send_weekly_digest(digest) and config.discord_weekly_ready()
     if email_failed or discord_failed:
