@@ -25,7 +25,7 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-09-16 |
 | MU | Micron Technology | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | INTC | Intel Corp | NASDAQ (US) | Watch | Medium | TBD | 2026-09-16 |
-| BABA | Alibaba Group (ADR) | NYSE (China) | Watch | Medium | TBD | 2026-08-29 |
+| BABA | Alibaba Group (ADR) | NYSE (China) | Watch | Medium | TBD | 2026-09-18 |
 | BIDU | Baidu Inc (ADR) | NASDAQ (China) | Watch | Low | TBD | 2026-08-29 |
 | BEKE | KE Holdings (ADR) | NYSE (China) | Watch | Low | TBD | 2026-08-29 |
 | NTES | NetEase Inc (ADR) | NASDAQ (China) | Watch | Low | TBD | 2026-08-29 |
