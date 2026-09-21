@@ -18,6 +18,8 @@ stock_knowledge/
 │   ├── <TICKER>_current_status.md
 │   └── <TICKER>_news_<YYYY>.md
 └── watchlist/<TICKER>/      ← สถานะ Watch (โครงเหมือนกัน แต่ tier Lite)
+
+    fallen_angel/<TICKER>/   ← สถานะ Fallen Angel (จดหมาย Jan — โครงต่างออกไป ดู §9)
 ```
 
 **กติกาตั้งชื่อ (บังคับเป๊ะ):**
@@ -171,3 +173,30 @@ Why It Matters: <อธิบาย 1-2 ประโยค>
 - [ ] ราคาเปลี่ยนอย่างเดียว → อัปเดต MoS ใน current_status + ย้าย `price=`/`asof=` ใน FV tag
       (ค่า bear/base/bull คงเดิม) — ไม่ revalue
 - [ ] อัปเดตคอลัมน์ `Last Review` ใน index.md เฉพาะตัวที่แตะ
+
+---
+
+## 9. bucket `fallen_angel/` — จดหมาย "[Fallen Angel with Jan]" (bot เขียนอัตโนมัติ)
+
+สถานะที่สามนอกเหนือจาก `own/` และ `watchlist/` — เก็บบทวิเคราะห์รายวันจากจดหมาย
+"[Fallen Angel with Jan]" (Gemini automation ส่งเข้า Gmail ตัวเอง ~08:10)
+ที่ archive โดย `src/fallen_angel_inbox.py` (launchd รัน 08:30 ทุกวัน,
+log: `src/data/fallen_angel_inbox.log`)
+
+**กติกา:**
+- ไฟล์ต่อ ticker: `<TICKER>_fallen_angel_<YYYY>.md` — append-only, 1 section ต่อ 1 จดหมาย,
+  เรียงเวลาจากเก่าไปใหม่, ขึ้นปีใหม่เปิดไฟล์ใหม่ (เหมือนกติกาข่าว)
+- ทุก section มี **FA tag** ที่ bot เขียนให้ (ห้ามแก้ด้วยมือ — weekly rollup grep tag นี้):
+  `<!-- FA: ticker=NKE date=2026-09-20 price=37.05 fv=94 mos=60.6 pe=17.3 div=4.43 msgid=... -->`
+- เนื้อหาเก็บ **ภาษาไทยต้นฉบับ** ของ Jan ได้ (ยกเว้นจาก §6.1) เพราะเป็น source material —
+  distill เป็นอังกฤษตอน promote
+- ticker ใหม่: bot เพิ่มแถวใน index.md ด้วย Status `Fallen Angel`, Priority `Low`
+  (**เพิ่มแถวได้เท่านั้น** — ห้ามเปลี่ยนแถวเดิม; การเปลี่ยน Status เป็นของ user เหมือนเดิม)
+  → daily pipeline จะดึงราคาติดตามให้อัตโนมัติจากแถวนี้
+- จดหมายที่หา ticker ไม่เจอ → bot ทิ้งไว้ที่ `fallen_angel/_inbox/<date>.md` ให้คนมาจัดการเอง
+
+**Promote เมื่อเริ่มซื้อ หรือจะจับเข้า watchlist จริง (ทำใน ZCode session):**
+1. เปลี่ยน Status ใน index.md เป็น `Owned`/`Watch` แล้วย้าย folder ด้วย
+   `universe.move_ticker_folder()` (รองรับ fallen_angel แล้ว)
+2. Distill สิ่งที่ยังใช้จาก log → สร้าง 3 ไฟล์มาตรฐาน (§3–§5) ใน folder ปลายทาง
+3. ลบไฟล์ `_fallen_angel_<YYYY>.md` ออกจาก folder ปลายทาง (folder มาตรฐานมีแค่ 3 ชนิดไฟล์ — §1)

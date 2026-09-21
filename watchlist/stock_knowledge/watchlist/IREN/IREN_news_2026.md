@@ -1,13 +1,13 @@
 # IREN — Material News 2026
 
-## 2026-09-16 — Nvidia strikes US$5.5B AI-cloud deal with IREN; stock still down 6.1% on the news day
+## 2026-09-20 — One year into the Microsoft deal, IREN is delivering; neoclouds flex pricing power
 
 Source: Yahoo Finance feed
 URL: (yfinance headline — link not captured)
-Category: M&A
-Summary: Nvidia and IREN agreed on a US$5.5B AI-cloud deal, the first tangible demand validation for IREN's data-center conversion. The stock nonetheless closed down 6.1%, reflecting skepticism about execution and IREN's stressed balance sheet (Net Debt/EBITDA ~50x, negative FCF per 2026-09-16 daily fetch).
+Category: Management (execution) / Industry (neocloud pricing)
+Summary: Reporting marks one year since IREN's Microsoft deal, describing delivery as on track ("delivering"), alongside broader neocloud pricing power (Nebius raising AI-cloud prices). Combined with the $5.5B Nvidia deal (2026-09-16 entry), IREN now has two tier-1 counterparties.
 Impact: Positive
-Time Horizon: Long
-Thesis Impact: Potentially Strengthens — first credible counterparty; does not change current filing-level economics yet
-Intrinsic Value Impact: Unclear — depends on deal revenue recognition timing and margins
-Why It Matters: This is the one development that could move IREN out of value-trap territory: if the deal converts to revenue/backlog in actual filings for 2 straight quarters, the Fail verdict must be re-opened from scratch. Until then, filing-level balance-sheet flags stand.
+Time Horizon: Medium
+Thesis Impact: Potentially Strengthens — execution evidence is accumulating against the balance-sheet flags
+Intrinsic Value Impact: Potentially Increase — if contracts convert to filing-level revenue
+Why It Matters: The Fail verdict (2026-09-16) rests on filing-level leverage/coverage/FCF, not on demand absence. Execution proof from a year of Microsoft deliveries plus the new Nvidia contract means the re-assessment trigger (revenue/backlog appearing in 2 consecutive filings) could arrive sooner than expected. Balance sheet flags stand until filings confirm.

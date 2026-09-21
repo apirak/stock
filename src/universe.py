@@ -6,8 +6,9 @@ the columns:
 
     | Ticker | Company | Market | Status | Research Priority | Opportunity Status | Last Review |
 
-Status is `Owned` or `Watch` (the two statuses the user maintains); the folder
-placement mirrors it: stock_knowledge/own/<TICKER>/ vs stock_knowledge/watchlist/<TICKER>/.
+Status is `Owned`, `Watch` (the two statuses the user maintains) or
+`Fallen Angel` (added by fallen_angel_inbox.py for Jan's daily email picks);
+the folder placement mirrors it: stock_knowledge/own|watchlist|fallen_angel/<TICKER>/.
 
 All functions take an explicit `path` (default config.INDEX_PATH) so tests can
 run against temp files without touching the real knowledge base.
@@ -24,6 +25,7 @@ COLUMNS = ["Ticker", "Company", "Market", "Status", "Research Priority",
            "Opportunity Status", "Last Review"]
 STATUS_OWNED = "Owned"
 STATUS_WATCH = "Watch"
+STATUS_FALLEN_ANGEL = "Fallen Angel"
 _ROW_RE = re.compile(r"^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*"
                      r"([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$")
 
@@ -114,8 +116,43 @@ def update_row(ticker: str, fields: dict[str, str],
 
 
 # Folder names under stock_knowledge/ per status (index.md table uses
-# "Owned"/"Watch"; the folders follow the user's tree: own/ and watchlist/)
-FOLDER_BY_STATUS = {STATUS_OWNED: "own", STATUS_WATCH: "watchlist"}
+# "Owned"/"Watch"/"Fallen Angel"; the folders follow the user's tree)
+FOLDER_BY_STATUS = {STATUS_OWNED: "own", STATUS_WATCH: "watchlist",
+                    STATUS_FALLEN_ANGEL: "fallen_angel"}
+
+
+def add_row(row: dict[str, str], path: Path | None = None) -> bool:
+    """Append one ticker row to the index table. Returns False without
+    changing anything when the ticker is already listed (case-insensitive).
+
+    Only values for known COLUMNS are accepted; unknown keys raise ValueError
+    so bots cannot silently corrupt the schema. Rows are inserted directly
+    after the last table row; prose around the table is left untouched.
+    """
+    path = path or config.INDEX_PATH
+    unknown = set(row) - set(COLUMNS)
+    if unknown:
+        raise ValueError(f"unknown index columns: {sorted(unknown)}")
+    ticker = str(row.get("Ticker", "")).strip().upper()
+    if not ticker:
+        raise ValueError("row requires a Ticker")
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    last_row_idx = -1
+    for i, line in enumerate(lines):
+        rows = parse_index(line)
+        if not rows:
+            continue
+        if rows[0]["Ticker"].upper() == ticker:
+            return False
+        last_row_idx = i
+    if last_row_idx < 0:
+        raise ValueError(f"no index table found in {path}")
+    cells = {c: str(row.get(c, "")).strip() for c in COLUMNS}
+    cells["Ticker"] = ticker
+    lines.insert(last_row_idx + 1, "| " + " | ".join(cells[c] for c in COLUMNS) + " |")
+    _atomic_write(path, "\n".join(lines) + ("\n" if text.endswith("\n") else ""))
+    return True
 
 
 def move_ticker_folder(ticker: str, new_status: str,
