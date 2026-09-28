@@ -14,7 +14,7 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | NVDA | NVIDIA Corp | NASDAQ (US) | Owned | High | TBD | 2026-09-17 |
 | MSFT | Microsoft Corp | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
 | GOOGL | Alphabet Inc (Class A) | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
-| NFLX | Netflix Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-19 |
+| NFLX | Netflix Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-22 |
 | GDS | GDS Holdings (ADR) | NASDAQ (US/China) | Owned | Medium | TBD | 2026-08-29 |
 | IREN | IREN Ltd | NASDAQ (US) | Owned | Medium | TBD | 2026-09-20 |
 | TSLA | Tesla Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-16 |
@@ -38,7 +38,12 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | RBGLY | Reckitt Benckiser Group | OTC (US ADR) | Fallen Angel | Low | TBD | 2026-09-17 |
 | LPLA | LPL Financial Holdings | NASDAQ (US) | Fallen Angel | Low | TBD | 2026-09-18 |
 | BR | Broadridge Financial Solutions | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-19 |
-| NKE | NIKE, Inc. | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-20 |
+| NKE | NIKE, Inc. | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-22 |
+| STZ | Constellation Brands | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-21 |
+| MKTX | MarketAxess Holdings | NASDAQ (US) | Fallen Angel | Low | TBD | 2026-09-22 |
+| ZTS | Zoetis Inc. | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-23 |
+| EL | The Estée Lauder Companies | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-24 |
+| CLX | The Clorox Company | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-25 |
 
 ## Per-ticker files
 
