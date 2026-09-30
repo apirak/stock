@@ -11,7 +11,7 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 
 | Ticker | Company | Market | Status | Research Priority | Opportunity Status | Last Review |
 |---|---|---|---|---|---|---|
-| NVDA | NVIDIA Corp | NASDAQ (US) | Owned | High | TBD | 2026-09-17 |
+| NVDA | NVIDIA Corp | NASDAQ (US) | Owned | High | TBD | 2026-09-28 |
 | MSFT | Microsoft Corp | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
 | GOOGL | Alphabet Inc (Class A) | NASDAQ (US) | Owned | High | TBD | 2026-08-29 |
 | NFLX | Netflix Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-22 |
@@ -24,7 +24,7 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | VT | Vanguard Total World Stock ETF | NYSE Arca (US) | Owned | Low | TBD | 2026-09-19 |
 | AMZN | Amazon.com Inc | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | META | Meta Platforms | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
-| SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-09-16 |
+| SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-09-28 |
 | MU | Micron Technology | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | INTC | Intel Corp | NASDAQ (US) | Watch | Medium | TBD | 2026-09-20 |
 | BIDU | Baidu Inc (ADR) | NASDAQ (China) | Watch | Low | TBD | 2026-08-29 |
@@ -37,7 +37,7 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | CPB | Campbell's Co | NASDAQ (US) | Fallen Angel | Low | TBD | 2026-09-16 |
 | RBGLY | Reckitt Benckiser Group | OTC (US ADR) | Fallen Angel | Low | TBD | 2026-09-17 |
 | LPLA | LPL Financial Holdings | NASDAQ (US) | Fallen Angel | Low | TBD | 2026-09-18 |
-| BR | Broadridge Financial Solutions | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-19 |
+| BR | Broadridge Financial Solutions | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-28 |
 | NKE | NIKE, Inc. | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-22 |
 | STZ | Constellation Brands | NYSE (US) | Fallen Angel | Low | TBD | 2026-09-21 |
 | MKTX | MarketAxess Holdings | NASDAQ (US) | Fallen Angel | Low | TBD | 2026-09-22 |

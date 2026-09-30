@@ -302,9 +302,18 @@ def _row_float(row: dict, key: str) -> float | None:
 
 
 def select_top_picks(recent_rows: list[dict], limit: int = 2) -> list[dict]:
-    """Pick Pass-verdict rows with the strongest balance sheets, best first."""
-    candidates: list[tuple[float, dict]] = []
+    """Pick Pass-verdict rows with the strongest balance sheets, best first.
+
+    Dedupes by ticker (latest row wins) so a ticker logged on several days of
+    the lookback window cannot fill the whole picks list.
+    """
+    latest_by_ticker: dict[str, dict] = {}
     for row in recent_rows:
+        ticker = str(row.get("Ticker", "")).upper()
+        if ticker:
+            latest_by_ticker[ticker] = row  # later rows overwrite = latest
+    candidates: list[tuple[float, dict]] = []
+    for row in latest_by_ticker.values():
         verdict = str(row.get("Moat Impairment Verdict", ""))
         coverage = _row_float(row, "Interest Coverage Ratio")
         leverage = _row_float(row, "Net Debt / EBITDA")

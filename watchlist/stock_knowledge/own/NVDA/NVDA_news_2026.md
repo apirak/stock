@@ -104,4 +104,16 @@ Only genuinely material events (earnings, guidance, products, regulation, M&A, c
 - **Why It Matters:** Customer concentration plus weaker-credit neocloud buyers is precisely how an AI capex cycle turns into receivables/write-down risk. Filing-level revenue-by-customer disclosures should be monitored.
 
 
+## 2026-09-28 — Beijing reportedly mulls allowing Nvidia sales to ByteDance, Alibaba
+
+Source: Yahoo Finance feed
+URL: (yfinance headline — link not captured)
+Category: Regulation
+Summary: Reports say Chinese regulators are weighing whether to permit domestic tech giants (ByteDance, Alibaba) to purchase Nvidia AI chips, which would reopen a market segment that had been squeezed by tit-for-tat export controls. China chipmaking stocks fell on the news.
+Impact: Positive
+Time Horizon: Medium
+Thesis Impact: Strengthens (revenue pool expansion) — policy-dependent, not yet contracted
+Intrinsic Value Impact: Potentially Increase — depends on final policy and volumes
+Why It Matters: China access has been the largest single uncertainty overhang on NVDA's revenue. A formal reopening (watch for purchase approvals/filings) would remove a discount argument; note the same development is a demand tailwind for BABA's cloud business.
+
 *Excluded as noise: daily price moves, "stock falls after earnings" pattern commentary, minor product SKUs, and speculative price-prediction articles.*

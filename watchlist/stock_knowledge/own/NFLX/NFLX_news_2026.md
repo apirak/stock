@@ -80,5 +80,17 @@ Only genuinely material events (earnings, guidance, products, regulation, M&A, c
 - **Intrinsic Value Impact:** Unclear — depends on whether engagement trends show up in the next filing's viewing/user metrics.
 - **Why It Matters:** First external signal aligned with the pre-committed invalidation criteria. The Pass verdict stands on today's numbers (FCF 3.02%, discount 23.5%, clean balance sheet), but the next earnings report's engagement/user metrics are now the decisive check — if they confirm the downgrade's concern, the position must be re-reviewed immediately.
 
+## 2026-09-22 — Wells Fargo cuts NFLX to Underweight as "2026 slide deepens"
+
+Source: Yahoo Finance feed
+URL: (yfinance headline — link not captured)
+Category: Competition
+Summary: Wells Fargo downgraded NFLX to Underweight, explicitly citing a deepening 2026 slide — the second institution to go negative on engagement concerns this week (after the 2026-09-19 downgrade). The daily-framework discount widened to ~21%.
+Impact: Negative
+Time Horizon: Medium
+Thesis Impact: Weakens (watch-item) — consistent with pre-written invalidation #2; no filing-level user/engagement confirmation yet
+Intrinsic Value Impact: Unclear — hinges entirely on next filing's engagement metrics
+Why It Matters: Two independent institutions now anchor the bear case on the same axis the framework pre-committed to. The Pass verdict still stands on the numbers (FCF yield 3.1%, discount 21%, clean balance sheet), but the next earnings engagement disclosure is now a binary event for the position.
+
 ---
 *Excluded as noise: daily price moves, "stock falls despite beat" commentary loops, minor content announcements, and speculative price-prediction articles.*
