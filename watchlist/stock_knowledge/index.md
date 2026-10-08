@@ -19,13 +19,13 @@ Status changes (buy/sell) are made by the user via ZCode sessions — never by t
 | IREN | IREN Ltd | NASDAQ (US) | Owned | Medium | TBD | 2026-09-20 |
 | TSLA | Tesla Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-16 |
 | AMD | Advanced Micro Devices | NASDAQ (US) | Owned | Medium | TBD | 2026-08-29 |
-| AAPL | Apple Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-09-16 |
+| AAPL | Apple Inc | NASDAQ (US) | Owned | Medium | TBD | 2026-10-01 |
 | BABA | Alibaba Group (ADR) | NYSE (China) | Owned | Medium | TBD | 2026-09-20 |
 | VT | Vanguard Total World Stock ETF | NYSE Arca (US) | Owned | Low | TBD | 2026-09-19 |
 | AMZN | Amazon.com Inc | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | META | Meta Platforms | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
 | SHOP | Shopify Inc | NYSE (Canada) | Watch | Low | TBD | 2026-09-28 |
-| MU | Micron Technology | NASDAQ (US) | Watch | Medium | TBD | 2026-08-29 |
+| MU | Micron Technology | NASDAQ (US) | Watch | Medium | TBD | 2026-10-01 |
 | INTC | Intel Corp | NASDAQ (US) | Watch | Medium | TBD | 2026-09-20 |
 | BIDU | Baidu Inc (ADR) | NASDAQ (China) | Watch | Low | TBD | 2026-08-29 |
 | BEKE | KE Holdings (ADR) | NYSE (China) | Watch | Low | TBD | 2026-08-29 |

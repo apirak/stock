@@ -3,9 +3,11 @@ Discord webhook delivery, in the Feb persona (charactor/feb/persona.md).
 
 Two channels (both optional):
   - DISCORD_WEBHOOK_URL          → daily summary, one message after finalize
-  - DISCORD_WEBHOOK_URL_WEEKLY   → weekly digest, posted as THREE separate
-    messages: ① lead + tracking table ② pick embeds ③ mini-lesson
-    (falls back to DISCORD_WEBHOOK_URL when unset)
+  - DISCORD_WEBHOOK_URL_WEEKLY   → weekly digest, posted as separate messages:
+    ① lead + tracking table ② one message per pick ③ mini-lesson
+    (falls back to DISCORD_WEBHOOK_URL when unset; picks are NOT combined into
+    one message because a multi-embed payload can exceed Discord's webhook
+    request-body limit and die with HTTP 413)
 
 Persona rules baked in here: every message says "จาก Watch list", interesting
 names (Pass verdicts) get one embed each, names still priced above fair value
@@ -147,29 +149,34 @@ def _build_messages(data: dict) -> list[dict]:
         lead.append(f"⚠ {_trunc(note, 200)}")
     lead.append(f"-# {DISCLAIMER}")
 
-    # Message 2 — recommended stocks
+    # Messages 2..N — recommended stocks, one embed per message (small bodies)
     if picks:
-        picks_msg = _payload(
-            "🎯 **หุ้นน่าสนใจประจำสัปดาห์ (Falling Angle)** ค่ะ",
-            [_pick_embed(pick, i + 1) for i, pick in enumerate(picks)],
-        )
+        picks_msgs = []
+        for i, pick in enumerate(picks):
+            content = (
+                "🎯 **จาก Watch list — หุ้นน่าสนใจประจำสัปดาห์ (Falling Angle)** ค่ะ"
+                if i == 0
+                else f"🎯 **จาก Watch list — ตัวที่ {i + 1} (ต่อ)** ค่ะ"
+            )
+            picks_msgs.append(_payload(content, [_pick_embed(pick, i + 1)]))
     else:
-        picks_msg = _payload(
-            "🎯 สัปดาห์นี้ไม่มีหุ้นผ่านเกณฑ์ Falling Angle — ห้ามมั่งมีขึ้นมานะคะ รอสัญญาณจริงก่อน 💪"
-        )
+        picks_msgs = [_payload(
+            "🎯 จาก Watch list — สัปดาห์นี้ไม่มีหุ้นผ่านเกณฑ์ Falling Angle — ห้ามมั่งมีขึ้นมานะคะ รอสัญญาณจริงก่อน 💪"
+        )]
 
-    # Message 3 — mini-lesson
+    # Last message — mini-lesson
     lesson_msg = _payload(
-        "📚 **บทเรียนการลงทุนประจำสัปดาห์** นะคะ",
+        "📚 **จาก Watch list — บทเรียนการลงทุนประจำสัปดาห์** นะคะ",
         [_lesson_embed(data["lesson"])],
     )
 
-    return [_payload(_trunc("\n".join(lead), _MAX_CONTENT)), picks_msg, lesson_msg]
+    return [_payload(_trunc("\n".join(lead), _MAX_CONTENT)), *picks_msgs, lesson_msg]
 
 
 def send_weekly_digest(data: dict) -> bool:
-    """Post the weekly digest to the weekly Discord channel as 3 messages.
-    True only if every message succeeds."""
+    """Post the weekly digest to the weekly Discord channel as separate
+    messages (lead / one per pick / lesson). True only if every message
+    succeeds."""
     url = config.DISCORD_WEBHOOK_URL_WEEKLY or config.DISCORD_WEBHOOK_URL
     if not url:
         print("[discord] no weekly webhook configured; Discord delivery skipped")
