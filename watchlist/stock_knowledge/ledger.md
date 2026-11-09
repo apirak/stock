@@ -203,9 +203,39 @@ Fees: 0.09 USD US dividend withholding tax
 Reason: n/a
 Notes: Gross 0.60 USD, net 0.51 USD deposited to Dime! USD.
 
-<!-- Derived positions as of 2026-09-19 (from the entries above; assumes no
+## 2026-09-22 — DIVIDEND VT
+Shares: 0.1864785 (held on record date 2026-09-18)
+Price: 0.4084 USD/share gross
+Fees: 0.01 USD US dividend withholding tax
+Reason: n/a
+Notes: Gross 0.08 USD, net 0.07 USD deposited to Dime! USD.
+
+## 2026-09-30 — BUY AAPL
+Shares: 0.2692854
+Price: 330.43 USD
+Fees: none shown in app
+Reason: unknown
+Notes: Total 2,999.78 THB (Dime!). Order carries the app's schedule (DCA) icon.
+
+## 2026-10-01 — DIVIDEND NVDA
+Shares: 8.0156282 (held on record date 2026-09-10)
+Price: 0.25 USD/share gross
+Fees: 0.30 USD US dividend withholding tax
+Reason: n/a
+Notes: Gross 2.00 USD, net 1.70 USD deposited to Dime! USD.
+
+## 2026-10-08 — BUY VT
+Shares: unknown (market order not yet filled at report time)
+Price: market order — unfilled as of 2026-10-08 02:48 PM ICT
+Fees: 90.13 THB commission, waived via Monthly Free Trade coupon (VAT 0.00 — "No Commission")
+Reason: October 2026 asset-allocation plan — VT DCA ~60k THB tranche (agreed in 2026-10-08 planning chat)
+Notes: Stock amount 59,999.68 THB = 1,779.35 USD at 1 USD = 33.72 THB (Kiatnakin Phatra rate). Market order, Time in Force Day, regular hours only, paid from Dime! Save. Status "Waiting" — THB→USD exchange in progress; order bids at US regular-hours open. Order ID STKBML20261008074848853977. Append a follow-up entry with executed price/shares once filled.
+
+<!-- Derived positions as of 2026-10-08 (from the entries above; assumes no
      pre-2026-07-08 history):
      NVDA 8.0156282 · MSFT 1.6671853 · GOOGL 2.7199201 · AMD 3.2353102
      IREN 74.6096244 · GDS 36.2971911 · NFLX 2.3728073 · TSLA 0.6066880
-     BABA 10.2915059 · AAPL 0.9572290 · VT 0.1864785
-     GOOG 0 (position closed 2026-08-11) -->
+     BABA 10.2915059 · AAPL 1.2265144 · VT 0.1864785
+     GOOG 0 (position closed 2026-08-11)
+     Pending: 2026-10-08 BUY VT order (59,999.68 THB / 1,779.35 USD)
+     submitted but unfilled at report time — shares not yet included. -->

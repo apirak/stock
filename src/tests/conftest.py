@@ -68,6 +68,11 @@ def make_snapshot():
             fair_value_source="manual_override",
             market_cap=50_000.0,
             beta=1.1,
+            quote_currency="USD",
+            financial_currency="USD",
+            financial_period="2025-12-31",
+            quarterly_periods=["2026-06-30"],
+            news_status="ok",
             gross_margin=0.60,
             operating_margin=0.20,
             gross_margin_history=[0.60, 0.59, 0.61],      # newest first
@@ -99,6 +104,7 @@ def make_row(make_snapshot):
     def _make(snapshot_overrides: dict | None = None, **field_overrides):
         snap = make_snapshot(**(snapshot_overrides or {}))
         row = analyzer.analyze_ticker(snap)
+        row["Analysis Status"] = "Reviewed"
         row.update(field_overrides)
         return row
 

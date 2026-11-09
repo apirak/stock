@@ -86,7 +86,7 @@ def test_daily_message_overpriced_line(make_row):
     rich = make_row({"ticker": "RICH", "price": 120.0})             # -20% "discount" = expensive
     rows = [cheap, rich]
     content, embeds = discord_notifier.build_daily_message(rows)
-    assert "แพงกว่ามูลค่า" in content
+    assert "ส่วนลดจาก proxy ต่ำกว่าเกณฑ์" in content
     assert "RICH" in content
     assert len(embeds) == 1 and "CHEAP" in embeds[0]["title"]
 

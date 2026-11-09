@@ -20,6 +20,26 @@ def test_read_csv_missing_file_returns_empty(tmp_config):
     assert storage.read_csv() == []
 
 
+def test_legacy_csv_migration_preserves_rows_and_unknown_columns(tmp_config, make_row):
+    tmp_config.DATA_DIR.mkdir(parents=True)
+    tmp_config.CSV_LOG_PATH.write_text("Date,Ticker,Legacy Note\n2026-09-01,OLD,keep me\n", encoding="utf-8")
+    storage.append_csv([make_row()])
+    rows = storage.read_csv()
+    assert len(rows) == 2
+    assert rows[0]["Ticker"] == "OLD" and rows[0]["Legacy Note"] == "keep me"
+    assert rows[0]["Analysis Status"] == ""
+    storage.update_rows_for_date("2026-09-14", {"TEST": {"Deep-Dive": "updated"}})
+    assert storage.read_csv()[0]["Legacy Note"] == "keep me"
+
+
+def test_daily_report_displays_evidence_warnings_and_periods(tmp_config, make_row):
+    row = make_row(**{"Data Warnings": "news feed failed"})
+    text = storage.write_daily_report([row]).read_text(encoding="utf-8")
+    assert "news feed failed" in text
+    assert "2025-12-31" in text and "2026-06-30" in text
+    assert "Proxy only" in text and "Unverified" in text
+
+
 def test_append_and_read_roundtrip_preserves_columns(tmp_config, make_row):
     row = make_row()
     storage.append_csv([row])

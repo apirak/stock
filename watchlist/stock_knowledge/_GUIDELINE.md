@@ -110,6 +110,8 @@ stock_knowledge/
   proxy ต้องกำกับคำว่า "proxy"
 - **Revaluation Discipline:** ราคาขยับ = อัปเดตแค่ MoS/สถานะ; revalue FV เฉพาะเมื่อ
   สมมติฐานเปลี่ยนจริง (งบ, guidance, moat, หนี้) — อัปเดต tag ใหม่พร้อม asof วันที่ใหม่
+- ระบุวันที่ทบทวนสมมติฐานมูลค่าแยกจากวันที่ราคาของ FV tag; การ refresh ราคาไม่ได้ทำให้งานประเมินเก่าสดขึ้น
+- แยกธุรกิจ / independent valuation / portfolio fit ตาม knowledge/falling_angle.md บทที่ 10; analyst proxy gap ไม่ใช่ independent MoS
 
 ---
 
@@ -172,7 +174,7 @@ Why It Matters: <อธิบาย 1-2 ประโยค>
 - [ ] ข่าวกระทบ thesis/valuation → อัปเดต `current_status.md` เฉพาะ section เกี่ยวข้อง
 - [ ] ราคาเปลี่ยนอย่างเดียว → อัปเดต MoS ใน current_status + ย้าย `price=`/`asof=` ใน FV tag
       (ค่า bear/base/bull คงเดิม) — ไม่ revalue
-- [ ] อัปเดตคอลัมน์ `Last Review` ใน index.md เฉพาะตัวที่แตะ
+- [ ] อัปเดต `Last Review` ใน index.md เฉพาะเมื่อทบทวนหลักฐานจริง; price-only refresh ไม่เปลี่ยนวันที่นี้
 
 ---
 

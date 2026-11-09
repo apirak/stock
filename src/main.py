@@ -29,6 +29,7 @@ import data_fetcher
 import discord_notifier
 import storage
 import universe
+import ledger
 from mailer import build_weekly_email, send_email
 
 
@@ -101,6 +102,7 @@ def run_daily(args: argparse.Namespace) -> int:
     rows: list[dict] = []
     pending: list[dict] = []
     failures = 0
+    prior_rows = storage.read_log_rows()
     for ticker in tickers:
         try:
             snap = data_fetcher.fetch_snapshot(
@@ -108,7 +110,10 @@ def run_daily(args: argparse.Namespace) -> int:
             )
             row = analyzer.analyze_ticker(snap)
             rows.append(row)
-            pending.append(analyzer.pending_entry(snap, row))
+            entry = analyzer.pending_entry(snap, row)
+            history = [r for r in prior_rows if r.get("Ticker") == ticker and r.get("Date", "") < today]
+            entry["previous_review"] = history[-1] if history else None
+            pending.append(entry)
             _print_row_summary(row)
         except Exception as exc:  # noqa: BLE001 - one bad ticker must not kill the run
             failures += 1
@@ -175,8 +180,11 @@ def _finalize_daily(args: argparse.Namespace) -> int:
         upd: dict[str, str] = {}
         verdict = item.get("verdict")
         if verdict in analyzer.VALID_VERDICTS:
+            if verdict == analyzer.VERDICT_PASS and row.get("Data Warnings"):
+                verdict = analyzer.VERDICT_WATCH
             upd["Moat Impairment Verdict"] = verdict
             upd["Strategic Action"] = analyzer.action_from_row(verdict, row)
+            upd["Analysis Status"] = "Reviewed"
         if item.get("headwind_category"):
             upd["Headwind Category"] = str(item["headwind_category"])
         if item.get("moat_sources"):
@@ -193,6 +201,10 @@ def _finalize_daily(args: argparse.Namespace) -> int:
             upd["Invalidation Criteria"] = (
                 " | ".join(crit) if isinstance(crit, list) else str(crit)
             )
+        if item.get("valuation_status") in {"Unknown", "Proxy only", "No Margin", "Attractive"}:
+            upd["Valuation Status"] = item["valuation_status"]
+        if item.get("portfolio_fit") in {"Unverified", "Concentrated", "Fits"}:
+            upd["Portfolio Fit"] = item["portfolio_fit"]
         try:
             cap = float(item.get("suggested_position_cap_pct"))
             upd["Suggested Position Cap (%)"] = min(
@@ -237,7 +249,7 @@ def _deterioration_flag(latest: dict) -> str:
     if coverage is not None and coverage < config.MIN_INTEREST_COVERAGE:
         return f"⚠ Coverage {coverage:.1f}x ต่ำกว่าเกณฑ์ {config.MIN_INTEREST_COVERAGE:.0f}x"
     if "Watch" in verdict:
-        return "△ Watch — พื้นฐานเริ่มอ่อนแรง ติดตามต่อ"
+        return "△ Watch — รอหลักฐานหรือราคาที่เหมาะสม"
     return ""
 
 
@@ -284,7 +296,9 @@ def build_tracking(all_rows: list[dict]) -> tuple[list[dict], list[str]]:
             discount_now, discount_delta = f"{d_latest:.1f}", f"{d_latest - d_start:+.1f}"
 
         rec_price = storage.to_float(first.get("Market Price ($)"))
-        price = stats["price"] or rec_price
+        price = stats["price"]
+        if price is None:
+            notes.append(f"{ticker}: ราคาปัจจุบันไม่พร้อม; ไม่ใช้ราคาเริ่มติดตามแทน")
         return_pct = (price / rec_price - 1) * 100 if price and rec_price else None
         tracking.append({
             "ticker": ticker,
@@ -330,7 +344,7 @@ def _build_digest(payload: dict, analysis: dict) -> dict:
         str(p.get("ticker", "")).upper(): p for p in analysis.get("picks", [])
     }
     picks_payload = []
-    for row in payload["picks"]:
+    for row in analyzer.select_top_picks(payload["picks"], limit=len(payload["picks"])):
         a = pick_analysis.get(row["Ticker"], {})
         invalidation = a.get("invalidation_criteria")
         picks_payload.append({
@@ -375,6 +389,42 @@ def run_weekly(args: argparse.Namespace) -> int:
         tracking, notes = build_tracking(all_rows)
         notes = _coverage_notes(all_rows) + notes
 
+    transactions = ledger.read_transactions()
+    positions = ledger.net_positions(transactions)
+    latest = storage.dedupe_latest_by_ticker(all_rows)
+    prices = {t["ticker"]: storage.to_float(t["price"]) for t in tracking}
+    holdings = []
+    missing_prices = []
+    for ticker, position in positions.items():
+        if latest.get(ticker, {}).get("Quote Currency") != "USD":
+            missing_prices.append(ticker)
+            continue
+        price = prices.get(ticker) or storage.to_float(latest.get(ticker, {}).get("Market Price ($)"))
+        if not price or price <= 0:
+            missing_prices.append(ticker)
+            continue
+        holdings.append({"ticker": ticker, "shares": position["shares"],
+                         "market_value_usd": price * position["shares"],
+                         "price_asof": today if prices.get(ticker) else latest[ticker].get("Date"),
+                         "price_source": "weekly_price_fetch" if prices.get(ticker) else "last_logged_price"})
+    total = sum(h["market_value_usd"] for h in holdings)
+    for holding in holdings:
+        holding["weight_of_priced_holdings_pct"] = holding["market_value_usd"] / total * 100
+    portfolio = {"holdings": holdings, "priced_holdings_value_usd": total,
+                 "missing_prices": missing_prices,
+                 "ledger_last_date": transactions[-1]["date"] if transactions else None,
+                 "scope": "Recorded priced stock holdings only; cash, unrecorded trades and THB/USD conversion unverified."}
+    if holdings:
+        largest = sorted(holdings, key=lambda h: -h["market_value_usd"])[:4]
+        notes.append("สัดส่วนในหุ้นที่บันทึกและมีราคา: " + ", ".join(
+            f"{h['ticker']} {h['weight_of_priced_holdings_pct']:.1f}%" for h in largest))
+    if missing_prices:
+        notes.append("หุ้นที่ไม่มีราคาประเมิน: " + ", ".join(missing_prices))
+    notes.append("น้ำหนักข้างต้นไม่ใช่พอร์ตทั้งหมด: เงินสด ประวัติที่ตกหล่น และอัตราแลกเปลี่ยนยังไม่ยืนยัน; ห้ามคำนวณวงเงินซื้อจากต้นทุนใน ledger")
+    for row in storage.dedupe_latest_by_ticker(recent).values():
+        if row.get("Data Warnings"):
+            notes.append(f"{row['Ticker']}: {row['Data Warnings']}")
+
     payload = {
         "week": week,
         "date_str": today,
@@ -382,6 +432,7 @@ def run_weekly(args: argparse.Namespace) -> int:
         "tracking": tracking,
         "lesson": analyzer.generate_mini_lesson(),  # seed topic for the harness
         "notes": notes,
+        "portfolio": portfolio,
     }
     digest = _build_digest(payload, {})
     report_path = storage.write_weekly_report(digest)

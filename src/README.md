@@ -110,7 +110,7 @@ ledger.append_transaction("2026-09-16", "BUY", "MSFT", shares=2, price=530,
 
 | ฟังก์ชัน | หน้าที่ |
 |---|---|
-| `fetch_snapshot(ticker, fair_value_override=None, include_news=True) -> FinancialSnapshot` | ทุกอย่างของ 1 ตัว: ราคา, fair value (proxy 3 ชั้น), margin 4 ปี, ROIC, WACC, Net Debt/EBITDA, Interest Coverage, FCF Yield, ผลตอบแทน 1M/3M/6M, ข่าว 6 หัวข้อ — field ไหนดึงไม่ได้ = `None` + เหตุผลใน `warnings` ไม่เด้ง error |
+| `fetch_snapshot(ticker, fair_value_override=None, include_news=True) -> FinancialSnapshot` | ราคา/proxy, อัตราส่วนงบรายปีพร้อมงวด, margin รายไตรมาสพร้อมวันที่, currencies, ข่าวพร้อม URL/date และสถานะ ok/empty/failed; cross-currency ไม่คำนวณ WACC/FCF yield |
 | `fetch_price_stats(ticker) -> dict` | เบา ๆ สำหรับ weekly tracking: ราคา + returns 1M/3M/6M |
 | `chart_urls(ticker)` / `chart_links_md(ticker)` | ลิงก์กราฟ TradingView / Yahoo / StockAnalysis |
 | `FinancialSnapshot` | dataclass — `.discount` = (FV−P)/FV, `.to_prompt_dict()` แปลงเป็น JSON พร้อมหน่วย % สำหรับ pending file |
@@ -122,15 +122,15 @@ FV hierarchy: `manual_override` > `analyst_target_mean` > `earnings_based_estima
 
 | ฟังก์ชัน | หน้าที่ |
 |---|---|
-| `COLUMNS` | **schema คอลัมน์ CSV** จุดเดียว (23 คอลัมน์) — storage/mailer ดึงจากที่นี่ |
+| `COLUMNS` | schema CSV จุดเดียว; append ครั้งถัดไปขยาย header เก่าแบบ atomic โดยเก็บประวัติ/คอลัมน์เดิมและไม่เติมหลักฐานย้อนหลัง |
 | `VERDICT_PASS / VERDICT_WATCH / VERDICT_FAIL` | ค่า verdict 3 ค่า (data contract ห้ามแก้สะเปะ) |
-| `heuristic_verdict(snap) -> (verdict, reasons)` | ตัดสินจากตัวเลขล้วน: hard-fail (coverage < 2x, leverage > 5x, FCF ติดลบหนัก) → Fail; ไม่มี flag + discount ≥ 15% → Pass; ที่เหลือ Watch |
+| `heuristic_verdict(snap) -> (verdict, reasons)` | ตรวจ quality ก่อน: ข้อมูลหาย/เก่า/ผิดสเกล → Watch; ตัวเลขครบจึง screen ธุรกิจ ผลเป็น preliminary จน finalize |
 | `balance_sheet_flags(snap) -> list[str]` | เช็ค 4 เงื่อนไข: leverage > 3x, coverage < 5x, FCF ≤ 0/yield < 3%, ROIC < WACC |
 | `margin_trend(snap) -> str` | `"stable"/"eroding"/"improving"/"unknown"` (margin ลง = eroding) |
-| `strategic_action(verdict, snap)` / `action_from_row(verdict, row)` | Fail→Avoid, Watch→Wait, Pass + discount ≥ 15% → Accumulate 1st Tranche |
+| `strategic_action(verdict, snap)` / `action_from_row(verdict, row)` | Fail→Avoid, Watch→Wait, Pass + proxy gap ≥ 15% → Research Further; ไม่มี automatic buy action |
 | `analyze_ticker(snap) -> dict` | แถว CSV เต็ม 1 แถวจาก rule-based ล้วน — narrative เป็น placeholder รอ merge ตอน finalize |
 | `pending_entry(snap, row) -> dict` | payload ใน pending file: metrics + rule verdict + task ให้ ZCode |
-| `select_top_picks(recent_rows, limit=2) -> list[dict]` | คัดหุ้นสัปดาห์นี้: งบดับต้องผ่าน (coverage ≥ 5x, leverage ≤ 3x) แล้วจัดอันดับด้วย discount + FCF yield + ROIC |
+| `select_top_picks(recent_rows, limit=2) -> list[dict]` | คัดเฉพาะ Reviewed Pass + งวด/currency/news พร้อม + ไม่มี warning + ratios ครบใน sanity bounds; coverage ยกเว้นเฉพาะยืนยัน negligible; เป็น research priority และว่างได้ |
 | `verdict_drift(history_rows, latest_verdict) -> str` | 🔼 Upgrade / 🔽 Downgrade เทียบ best-in-history |
 | `generate_mini_lesson() -> dict` | seed บทเรียนหมุนตาม ISO week (ZCode ขยายเป็นไทย) |
 
@@ -150,7 +150,7 @@ FV hierarchy: `manual_override` > `analyst_target_mean` > `earnings_based_estima
 
 | ฟังก์ชัน | หน้าที่ |
 |---|---|
-| `build_daily_message(rows) -> (content, embeds)` | pure — กติกา Feb: ทุกข้อความขึ้นต้น "จาก Watch list"; ตัวน่าสนใจ (Pass) = embed เขียวต่อตัว (ราคา/FV/MoS/แผน/กราฟ); ที่เหลือ one-liner; แพงกว่ามูลค่ารวมบรรทัดเดียว 🧡; ไม่มีตัวน่าสนใจ = บอกตรง ๆ ห้ามมั่งมี; ปิดท้าย disclaimer |
+| `build_daily_message(rows) -> (content, embeds)` | pure — แสดงคำเตือนข้อมูลก่อน, Pass เป็นรายชื่อศึกษาเพิ่ม, proxy gap แสดงเป็น % และไม่เรียกว่า MoS; ปิดท้าย disclaimer |
 | `send_daily_summary(rows) -> bool` | โพสต์ daily ไป `DISCORD_WEBHOOK_URL` (username "Feb 🌷") |
 | `send_weekly_digest(data) -> bool` | โพสต์ weekly **3 ข้อความ**: ① lead + ตาราง tracking ② pick embeds (สีตาม verdict) ③ บทเรียน — ไป `DISCORD_WEBHOOK_URL_WEEKLY` |
 
@@ -164,7 +164,7 @@ FV hierarchy: `manual_override` > `analyst_target_mean` > `earnings_based_estima
 | ฟังก์ชัน | หน้าที่ |
 |---|---|
 | `run_daily(args)` | `_resolve_tickers` → fetch → analyze → append CSV + brief + pending file |
-| `run_weekly(args)` | อ่าน log → select_top_picks + build_tracking → weekly pending + digest fallback |
+| `run_weekly(args)` | อ่าน log → research candidates + tracking + ledger-derived priced USD holdings → pending/digest; เงินสดและประวัติที่ตกหล่นยังไม่ยืนยัน |
 | `run_finalize(args)` | merge analysis JSON → CSV → report → Discord (weekly: + email) |
 | `build_tracking(all_rows)` | ต่อตัว: anchor → returns ตั้งแต่แนะนำ + 1M/3M/6M + verdict drift + แนวโน้มส่วนลด 7 วัน |
 | `_deterioration_flag(latest)` | สัญญาณเตือนไทย: FAIL / leverage เกิน / coverage ต่ำ / Watch |
@@ -186,13 +186,14 @@ metrics + `rule_based_verdict` + `rule_based_flags` + `task`
    "headwind_category": "Transitory / Surface-level | Structural Damage | Mixed",
    "moat_sources": ["Intangible Assets", "Switching Costs", "Network Effect", "Cost Advantage", "Efficient Scale"],
    "core_headwinds": "...", "deep_dive": "...", "tranche_plan": "...",
-   "invalidation_criteria": ["3+ ข้อ"], "suggested_position_cap_pct": 5-8}]}
+   "invalidation_criteria": ["existing evidence-based criteria"], "suggested_position_cap_pct": 5,
+   "valuation_status": "Proxy only", "portfolio_fit": "Unverified"}]}
 ```
 
-**`src/data/pending/weekly-<Www>.json`** → `{"week", "date_str", "picks", "tracking", "lesson": seed, "notes"}`
+**`src/data/pending/weekly-<Www>.json`** → `{"week", "date_str", "picks", "tracking", "lesson": seed, "notes", "portfolio"}`
 **`src/data/analysis/weekly-<Www>.json`** → `{"week", "picks": [{ticker, why_moat_intact, market_overreaction, tranche_strategy, invalidation_criteria}], "lesson": {title, body}}` — เนื้อความไทย, enum อังกฤษ
 
-**`src/data/daily_log.csv`** — 23 คอลัมน์ ตาม `analyzer.COLUMNS`
+**`src/data/daily_log.csv`** — คอลัมน์ตาม `analyzer.COLUMNS`; แถวเก่าที่ไม่มี metadata ยังเก็บไว้ แต่ไม่เข้าอันดับจนได้ข้อมูลรอบใหม่ที่ตรวจแล้ว
 
 **index.md / ledger.md** — ดู format ใน `universe.py` / `ledger.py` และหัวไฟล์จริง
 
@@ -204,7 +205,7 @@ metrics + `rule_based_verdict` + `rule_based_flags` + `task`
 |---|---|
 | เพิ่ม/ลบ/เปลี่ยนสถานะหุ้น | ผ่าน ZCode session → `universe.update_row` + `move_ticker_folder` + `ledger` (ไม่แก้ env อีกต่อไป) |
 | ปรับเกณฑ์ framework | constants ใน `config.py` **พร้อม** ข้อความใน `knowledge/falling_angle.md` |
-| ใส่ Fair Value แม่น | env `FAIR_VALUE_OVERRIDES` ใน `.env` |
+| ใส่ valuation proxy จากภายนอก | env `FAIR_VALUE_OVERRIDES` ใน `.env`; independent valuation เก็บวิธี/สมมติฐาน/ช่วงไว้ใน research |
 | เปลี่ยน "สมอง" ผู้วิเคราะห์ | แก้ prompt ใน ZCode Automations (อ้างอิง knowledge/falling_angle.md + plan/stock.md) |
 | เพิ่มคอลัมน์ CSV | `COLUMNS` ใน `analyzer.py` + `analyze_ticker` |
 | เปลี่ยนบุคลิกข้อความ Discord | `charactor/feb/persona.md` + templates ใน `discord_notifier.py` |
@@ -213,7 +214,7 @@ metrics + `rule_based_verdict` + `rule_based_flags` + `task`
 ## 6. Tests
 
 ```bash
-cd src && .venv/bin/python -m pytest      # 158 tests, offline, < 1 วินาที
+cd src && .venv/bin/python -m pytest      # offline; test outputs show current count
 ```
 
 ครอบคลุมทุกโมดูลรวมถึง universe/ledger ใหม่ — กติกา TDD และ fixtures อยู่ใน

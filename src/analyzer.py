@@ -16,6 +16,7 @@ works even before the harness analysis is merged.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 
 import config
 from data_fetcher import FinancialSnapshot
@@ -29,6 +30,7 @@ VALID_VERDICTS = {VERDICT_PASS, VERDICT_WATCH, VERDICT_FAIL}
 ACTION_ACCUMULATE = "Accumulate 1st Tranche"
 ACTION_WAIT = "Wait for Next Earnings"
 ACTION_AVOID = "Avoid"
+ACTION_RESEARCH = "Research Further"
 
 # Ranking used for drift detection: higher = healthier
 VERDICT_RANK = {VERDICT_PASS: 2, VERDICT_WATCH: 1, VERDICT_FAIL: 0}
@@ -58,12 +60,50 @@ COLUMNS = [
     "Invalidation Criteria",
     "Suggested Position Cap (%)",
     "Data Warnings",
+    "Valuation Source",
+    "Financial Period",
+    "Quarterly Period",
+    "News Status",
+    "Interest Expense Negligible",
+    "Valuation Status",
+    "Portfolio Fit",
+    "Quote Currency",
+    "Financial Currency",
+    "Analysis Status",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Deterministic screening rules
 # ---------------------------------------------------------------------------
+
+def data_quality_flags(snap: FinancialSnapshot) -> list[str]:
+    """Missing/implausible evidence blocks a positive screen, not just prose."""
+    flags = list(snap.warnings)
+    if not snap.quote_currency or snap.quote_currency != snap.financial_currency:
+        flags.append("quote/financial currencies must match before comparing ratios")
+    if snap.news_status != "ok":
+        flags.append("news coverage unverified")
+    for name, value, max_age in (("annual period", snap.financial_period, 550),
+                                 ("quarterly period", snap.quarterly_periods[0] if snap.quarterly_periods else "", 180)):
+        try:
+            age = (datetime.fromisoformat(snap.as_of).date() - datetime.fromisoformat(value).date()).days
+            if age < 0 or age > max_age:
+                flags.append(f"{name} stale or in future")
+        except ValueError:
+            flags.append(f"{name} unknown")
+    for name in ("price", "gross_margin", "operating_margin", "roic", "wacc", "net_debt_ebitda", "fcf_yield"):
+        value = getattr(snap, name)
+        if value is None or not math.isfinite(value):
+            flags.append(f"{name} unavailable or non-finite")
+    if not snap.interest_expense_negligible and (snap.interest_coverage is None or not math.isfinite(snap.interest_coverage)):
+        flags.append("interest coverage unknown (not confirmed negligible)")
+    # ponytail: broad sanity bounds flag unusual businesses for manual validation, not a value-trap verdict.
+    if snap.roic is not None and abs(snap.roic) > 1:
+        flags.append("ROIC outside sanity range; verify invested capital")
+    if snap.fcf_yield is not None and abs(snap.fcf_yield) > 0.30:
+        flags.append("FCF yield outside sanity range; verify currency and period")
+    return flags
 
 def balance_sheet_flags(snap: FinancialSnapshot) -> list[str]:
     """Framework breaches from section 1 of the spec."""
@@ -109,6 +149,9 @@ def heuristic_verdict(snap: FinancialSnapshot) -> tuple[str, list[str]]:
     flags = balance_sheet_flags(snap)
     reasons = list(flags)
     discount = snap.discount
+    quality_flags = data_quality_flags(snap)
+    if quality_flags:
+        return VERDICT_WATCH, reasons + quality_flags
 
     hard_fail = (
         (snap.interest_coverage is not None and snap.interest_coverage < 2.0)
@@ -117,7 +160,7 @@ def heuristic_verdict(snap: FinancialSnapshot) -> tuple[str, list[str]]:
     )
     if hard_fail:
         return VERDICT_FAIL, reasons or ["balance sheet in the danger zone"]
-    if not flags and margin_trend(snap) != "eroding" and discount is not None \
+    if not flags and margin_trend(snap) in ("stable", "improving") and discount is not None \
             and discount >= config.MIN_DISCOUNT_FOR_BUY:
         reasons.append(f"discount to fair value {discount:.0%} with clean balance sheet")
         return VERDICT_PASS, reasons
@@ -154,7 +197,7 @@ def strategic_action(verdict: str, snap: FinancialSnapshot) -> str:
         return ACTION_WAIT
     if snap.discount is None or snap.discount < config.MIN_DISCOUNT_FOR_BUY:
         return ACTION_WAIT
-    return ACTION_ACCUMULATE
+    return ACTION_RESEARCH
 
 
 # ---------------------------------------------------------------------------
@@ -175,9 +218,9 @@ def _fallback_deep_dive(snap: FinancialSnapshot, verdict: str, flags: list[str],
         else "ROIC/WACC unavailable"
     )
     stance = {
-        VERDICT_PASS: "The numbers support a temporary, not structural, impairment.",
-        VERDICT_WATCH: "Signals are mixed; the discount is real but unproven.",
-        VERDICT_FAIL: "Quantitative flags point toward structural impairment.",
+        VERDICT_PASS: "Quantitative screen passed; temporary impairment and moat still need source verification.",
+        VERDICT_WATCH: "Evidence is mixed or incomplete; no conclusion on intrinsic-value discount.",
+        VERDICT_FAIL: "Quantitative risk flags require review; they do not alone prove permanent business damage.",
     }[verdict]
     return (
         f"{snap.company} ({snap.ticker}) trades at {snap.price} vs an estimated fair value "
@@ -191,7 +234,8 @@ def _fallback_deep_dive(snap: FinancialSnapshot, verdict: str, flags: list[str],
 def _fallback_tranche_plan() -> str:
     lo, hi = config.FIRST_TRANCHE_MIN, config.FIRST_TRANCHE_MAX
     return (
-        f"Tranche 1: {lo}-{hi}% of intended full position to establish exposure. "
+        f"Research only: verify primary sources, independent valuation and portfolio fit before buying. "
+        f"Conditional Tranche 1: {lo}-{hi}% of intended full position. "
         f"Tranche 2: {lo+25}% after the next earnings report confirms stable margins. "
         f"Tranche 3: remainder only if ROIC stays above WACC and the discount persists."
     )
@@ -255,7 +299,17 @@ def analyze_ticker(snap: FinancialSnapshot) -> dict:
         "Tranche Plan": _fallback_tranche_plan(),
         "Invalidation Criteria": " | ".join(invalidation),
         "Suggested Position Cap (%)": config.POSITION_CAP_MIN,
-        "Data Warnings": "; ".join(snap.warnings),
+        "Data Warnings": "; ".join(data_quality_flags(snap)),
+        "Valuation Source": snap.fair_value_source,
+        "Financial Period": snap.financial_period,
+        "Quarterly Period": snap.quarterly_periods[0] if snap.quarterly_periods else "",
+        "News Status": snap.news_status,
+        "Interest Expense Negligible": str(snap.interest_expense_negligible).lower(),
+        "Valuation Status": "Proxy only" if snap.fair_value is not None else "Unknown",
+        "Portfolio Fit": "Unverified",
+        "Quote Currency": snap.quote_currency,
+        "Financial Currency": snap.financial_currency,
+        "Analysis Status": "Pending",
     }
 
 
@@ -268,10 +322,11 @@ def pending_entry(snap: FinancialSnapshot, row: dict) -> dict:
         "rule_based_action": row.get("Strategic Action", ""),
         "rule_based_flags": reasons,
         "task": (
-            "Run the Moat Impairment Test on this company: classify headwinds as "
+            "Monitor changes against existing research. Run the Moat Impairment Test only with sourced evidence: classify headwinds as "
             "'Transitory / Surface-level' vs 'Structural Damage', give a verdict "
             "(Pass - Temporary | Watch | Fail - Value Trap), and draft the strategic "
-            "entry plan. Use only the facts in this file; do not invent numbers."
+            "conditional research plan. Separate business quality, independent valuation and portfolio fit. "
+            "Read existing research and primary sources for material events; missing news is not absence of risk."
         ),
     })
     return entry
@@ -286,7 +341,9 @@ def action_from_row(verdict: str, row: dict) -> str:
     discount = _row_float(row, "Discount (%)")
     if discount is None or discount / 100.0 < config.MIN_DISCOUNT_FOR_BUY:
         return ACTION_WAIT
-    return ACTION_ACCUMULATE
+    if row.get("Data Warnings"):
+        return ACTION_WAIT
+    return ACTION_RESEARCH
 
 
 # ---------------------------------------------------------------------------
@@ -296,13 +353,14 @@ def action_from_row(verdict: str, row: dict) -> str:
 def _row_float(row: dict, key: str) -> float | None:
     try:
         raw = row.get(key, "")
-        return float(raw) if raw not in ("", None) else None
+        number = float(raw) if raw not in ("", None) else None
+        return number if number is not None and math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
 
 
 def select_top_picks(recent_rows: list[dict], limit: int = 2) -> list[dict]:
-    """Pick Pass-verdict rows with the strongest balance sheets, best first.
+    """Research candidates only: complete, plausible Pass rows, best first.
 
     Dedupes by ticker (latest row wins) so a ticker logged on several days of
     the lookback window cannot fill the whole picks list.
@@ -315,22 +373,35 @@ def select_top_picks(recent_rows: list[dict], limit: int = 2) -> list[dict]:
     candidates: list[tuple[float, dict]] = []
     for row in latest_by_ticker.values():
         verdict = str(row.get("Moat Impairment Verdict", ""))
+        if verdict != VERDICT_PASS or row.get("Data Warnings") or row.get("Analysis Status") != "Reviewed":
+            continue
+        if (not row.get("Valuation Source") or not row.get("Financial Period")
+                or not row.get("Quarterly Period") or row.get("News Status") != "ok"
+                or not row.get("Quote Currency") or row.get("Quote Currency") != row.get("Financial Currency")):
+            continue
+        price = _row_float(row, "Market Price ($)")
+        if price is None or price <= 0:
+            continue
         coverage = _row_float(row, "Interest Coverage Ratio")
         leverage = _row_float(row, "Net Debt / EBITDA")
         balance_ok = (
-            (coverage is None or coverage >= config.MIN_INTEREST_COVERAGE)
-            and (leverage is None or leverage <= config.MAX_NET_DEBT_EBITDA)
+            (str(row.get("Interest Expense Negligible", "")).lower() == "true"
+             or coverage is not None and coverage >= config.MIN_INTEREST_COVERAGE)
+            and leverage is not None and leverage <= config.MAX_NET_DEBT_EBITDA
         )
         if not balance_ok:
             continue
-        discount = (_row_float(row, "Discount (%)") or 0.0) / 100.0
-        fcf_yield = (_row_float(row, "FCF Yield (%)") or 0.0) / 100.0
-        roic = (_row_float(row, "ROIC (%)") or 0.0) / 100.0
-        score = discount * 200 + fcf_yield * 100 + roic * 50
-        if leverage is not None:
-            score -= leverage * 2
-        tier = {VERDICT_PASS: 100, VERDICT_WATCH: 0}.get(verdict, -100)
-        candidates.append((tier + score, row))
+        discount = _row_float(row, "Discount (%)")
+        fcf_yield = _row_float(row, "FCF Yield (%)")
+        roic = _row_float(row, "ROIC (%)")
+        wacc = _row_float(row, "WACC (%)")
+        if any(v is None for v in (discount, fcf_yield, roic, wacc)):
+            continue
+        if not (0 <= discount < 100 and 3 <= fcf_yield <= 30 and 0 < roic <= 100 and roic > wacc):
+            continue
+        # This is research priority, never a measure of expected investment return.
+        score = discount * 2 + fcf_yield + roic * 0.5 - leverage * 2
+        candidates.append((score, {**row, "Strategic Action": ACTION_RESEARCH}))
     candidates.sort(key=lambda pair: pair[0], reverse=True)
     return [row for _, row in candidates[:limit]]
 

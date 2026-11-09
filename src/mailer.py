@@ -72,8 +72,8 @@ _FOOTER_CSS = (
 def _metrics_table(row: dict) -> str:
     cells = [
         ("Price", f"${_esc(row.get('Market Price ($)'))}"),
-        ("Fair Value", f"${_esc(row.get('Fair Value ($)'))}"),
-        ("Discount", f"{_esc(row.get('Discount (%)'))}%"),
+        ("Valuation proxy", f"${_esc(row.get('Fair Value ($)'))}"),
+        ("Proxy gap (not MoS)", f"{_esc(row.get('Discount (%)'))}%"),
         ("Gross / Op Margin", f"{_esc(row.get('Gross Margin (%)'))}% / {_esc(row.get('Operating Margin (%)'))}%"),
         ("ROIC vs WACC", f"{_esc(row.get('ROIC (%)'))}% vs {_esc(row.get('WACC (%)'))}%"),
         ("Net Debt/EBITDA", _esc(row.get("Net Debt / EBITDA")) or "n/a"),
@@ -104,10 +104,11 @@ def _pick_card(pick: dict, rank: int) -> str:
         <span style="{_LABEL_CSS}">เพดานพอร์ต {_esc(row.get('Suggested Position Cap (%)'))}%</span>
       </p>
       {_metrics_table(row)}
+      <p style="font-size:12px">Valuation: {_esc(row.get('Valuation Status') or 'Unknown')} · Portfolio fit: {_esc(row.get('Portfolio Fit') or 'Unverified')} · Annual period: {_esc(row.get('Financial Period') or 'Unknown')} · Latest quarter: {_esc(row.get('Quarterly Period') or 'Unknown')}</p>
       <p style="margin:12px 0 0">{_chart_links_html(row.get('Ticker'))}</p>
       <p style="margin:14px 0 4px"><b style="font-family:Arial;font-size:13px">🏰 ทำไมป้อมปราการยังแข็งแกร่ง</b><br>{_nl2br(narrative['why_moat_intact'])}</p>
-      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">📉 ตลาดกำลัง Overreact อย่างไร</b><br>{_nl2br(narrative['market_overreaction'])}</p>
-      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🎯 แผนแบ่งไม้เข้าซื้อ (Tranche)</b><br>{_nl2br(narrative['tranche_strategy'])}</p>
+      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">📉 เหตุผลของราคาและข้อโต้แย้ง</b><br>{_nl2br(narrative['market_overreaction'])}</p>
+      <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🎯 เงื่อนไขก่อนแบ่งไม้</b><br>{_nl2br(narrative['tranche_strategy'])}</p>
       <p style="margin:10px 0 4px"><b style="font-family:Arial;font-size:13px">🚪 จุดยอมแพ้ (Invalidation) — เจอเมื่อไหร่ต้องตัด</b></p>
       <ul style="margin:4px 0 8px;padding-left:22px;font-size:13px">{invalidation_items}</ul>
     </div>"""
@@ -177,7 +178,7 @@ def build_weekly_email(data: dict) -> tuple[str, str]:
       Quality Value Investing Tracker &middot; { _esc(date_str) }</p>
   </div>
 
-  <div class="section" style="{_SECTION_CSS}">ส่วนที่ 1 &mdash; Fallen Angels ประจำสัปดาห์</div>
+  <div class="section" style="{_SECTION_CSS}">ส่วนที่ 1 &mdash; หุ้นที่ควรศึกษาเพิ่ม (อันดับวิจัย ไม่ใช่คำแนะนำซื้อ)</div>
   {picks_html}
 
   <div class="section" style="{_SECTION_CSS}">ส่วนที่ 2 &mdash; ติดตามพอร์ต &amp; Watchlist</div>

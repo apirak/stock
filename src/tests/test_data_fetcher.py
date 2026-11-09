@@ -133,7 +133,7 @@ def _income_df():
         ],
         index=["Total Revenue", "Gross Profit", "Operating Income",
                "Interest Expense", "Pretax Income", "Tax Provision", "EBITDA"],
-        columns=["FY2025", "FY2024"],   # newest first, like yfinance
+        columns=["2025-12-31", "2024-12-31"],   # newest first, like yfinance
     )
 
 
@@ -142,7 +142,7 @@ def _balance_df():
         [[800.0], [400.0], [100.0], [50.0]],
         index=["Stockholders Equity", "Total Debt",
                "Cash And Cash Equivalents", "Other Short Term Investments"],
-        columns=["FY2025"],
+        columns=["2025-12-31"],
     )
 
 
@@ -150,17 +150,21 @@ def _cashflow_df():
     return pd.DataFrame(
         [[250.0], [-80.0]],
         index=["Operating Cash Flow", "Capital Expenditure"],
-        columns=["FY2025"],
+        columns=["2025-12-31"],
     )
 
 
 class FakeTicker:
     def __init__(self, info=None, income=None, balance=None, cashflow=None,
-                 closes=None, news=None, info_error=False):
-        self._info = info if info is not None else {}
+                 closes=None, news=None, info_error=False, quarterly=None):
+        self._info = {"currency": "USD", "financialCurrency": "USD", **(info or {})}
         self.income_stmt = income
         self.balance_sheet = balance
         self.cashflow = cashflow
+        self.quarterly_income_stmt = quarterly
+        if quarterly is None and income is not None:
+            self.quarterly_income_stmt = income.copy()
+            self.quarterly_income_stmt.columns = [f"2026-0{6-i*3}-30" for i in range(len(income.columns))]
         self._closes = closes
         self._news = news
         self._info_error = info_error
@@ -281,6 +285,39 @@ class TestFetchSnapshot:
         patch_ticker(FakeTicker(info={"currentPrice": 5.0}, news=RuntimeError("rss down")))
         snap = data_fetcher.fetch_snapshot("TEST")
         assert snap.news_headlines == []
+        assert snap.news_status == "failed"
+        assert any("news feed failed" in w for w in snap.warnings)
+
+    def test_empty_news_is_distinct_from_failed_news(self, patch_ticker):
+        patch_ticker(FakeTicker(info={"currentPrice": 5.0}, news=[]))
+        assert data_fetcher.fetch_snapshot("TEST").news_status == "empty"
+
+    def test_currency_mismatch_does_not_mix_cashflow_with_usd_market_cap(self, patch_ticker):
+        patch_ticker(FakeTicker(info={"currentPrice": 80, "marketCap": 2000,
+                                     "financialCurrency": "CNY"},
+                                income=_income_df(), balance=_balance_df(),
+                                cashflow=_cashflow_df()))
+        snap = data_fetcher.fetch_snapshot("TEST")
+        assert snap.fcf == 170
+        assert snap.fcf_yield is None and snap.wacc is None
+        assert any("currency" in w for w in snap.warnings)
+
+    def test_periods_and_quarterly_gaps_remain_aligned(self, patch_ticker):
+        quarterly = _income_df()
+        quarterly.columns = ["2026-06-30", "2026-03-31"]
+        quarterly.loc["Gross Profit", "2026-06-30"] = None
+        patch_ticker(FakeTicker(income=_income_df(), quarterly=quarterly))
+        snap = data_fetcher.fetch_snapshot("TEST")
+        payload = snap.to_prompt_dict()
+        assert snap.financial_period == "2025-12-31"
+        assert payload["margin_history_frequency"] == "annual"
+        assert payload["quarterly_periods"] == ["2026-06-30", "2026-03-31"]
+        assert payload["quarterly_gross_margin_pct"] == [None, 58.0]
+
+    def test_missing_capex_does_not_treat_ocf_as_fcf(self, patch_ticker):
+        cashflow = _cashflow_df().drop("Capital Expenditure")
+        patch_ticker(FakeTicker(cashflow=cashflow))
+        assert data_fetcher.fetch_snapshot("TEST").fcf is None
 
     def test_include_news_false_skips_news(self, patch_ticker):
         patch_ticker(FakeTicker(info={"currentPrice": 5.0},

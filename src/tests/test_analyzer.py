@@ -126,7 +126,7 @@ def test_strategic_action_matrix(make_snapshot):
     assert analyzer.strategic_action(analyzer.VERDICT_FAIL, make_snapshot()) == analyzer.ACTION_AVOID
     assert analyzer.strategic_action(analyzer.VERDICT_WATCH, make_snapshot()) == analyzer.ACTION_WAIT
     assert analyzer.strategic_action(
-        analyzer.VERDICT_PASS, make_snapshot()) == analyzer.ACTION_ACCUMULATE
+        analyzer.VERDICT_PASS, make_snapshot()) == analyzer.ACTION_RESEARCH
     assert analyzer.strategic_action(
         analyzer.VERDICT_PASS, make_snapshot(fair_value=None)) == analyzer.ACTION_WAIT
     assert analyzer.strategic_action(
@@ -145,7 +145,7 @@ def test_analyze_row_has_exactly_the_log_columns(make_snapshot):
 def test_analyze_row_pass_verdict_and_action(make_snapshot):
     row = analyzer.analyze_ticker(make_snapshot())
     assert row["Moat Impairment Verdict"] == analyzer.VERDICT_PASS
-    assert row["Strategic Action"] == analyzer.ACTION_ACCUMULATE
+    assert row["Strategic Action"] == analyzer.ACTION_RESEARCH
     assert row["Suggested Position Cap (%)"] == config.POSITION_CAP_MIN
     assert "discount to fair value 20% with clean balance sheet" in row["Core Headwinds / Catalyst"]
 
@@ -206,7 +206,7 @@ def test_action_from_row_uses_discount_cell(make_row):
     assert analyzer.action_from_row(
         analyzer.VERDICT_WATCH, make_row()) == analyzer.ACTION_WAIT
     assert analyzer.action_from_row(
-        analyzer.VERDICT_PASS, make_row()) == analyzer.ACTION_ACCUMULATE
+        analyzer.VERDICT_PASS, make_row()) == analyzer.ACTION_RESEARCH
     assert analyzer.action_from_row(
         analyzer.VERDICT_PASS, make_row(**{"Discount (%)": "5.00"})) == analyzer.ACTION_WAIT
     assert analyzer.action_from_row(
@@ -225,18 +225,18 @@ class TestSelectTopPicks:
         trap = make_row({"ticker": "TRAP", "interest_coverage": 1.2})              # coverage < 5
 
         picks = analyzer.select_top_picks([watch_deep, trap, strong], limit=2)
-        assert [p["Ticker"] for p in picks] == ["STRNG", "WATCH"]
+        assert [p["Ticker"] for p in picks] == ["STRNG"]
         assert "TRAP" not in [p["Ticker"] for p in picks]
 
     def test_limit_is_respected(self, make_row):
         rows = [make_row({"ticker": f"T{i}"}) for i in range(3)]
         assert len(analyzer.select_top_picks(rows, limit=2)) == 2
 
-    def test_missing_numeric_cells_count_as_neutral(self, make_row):
+    def test_missing_numeric_cells_excluded(self, make_row):
         blank = make_row(**{"Interest Coverage Ratio": "", "Net Debt / EBITDA": "",
                             "Discount (%)": "", "FCF Yield (%)": "", "ROIC (%)": ""})
         picks = analyzer.select_top_picks([blank], limit=1)
-        assert picks == [blank]
+        assert picks == []
 
 
 def test_generate_mini_lesson_rotates_by_iso_week():

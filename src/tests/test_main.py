@@ -112,15 +112,16 @@ def test_build_tracking_notes_failed_price_fetch(make_row, monkeypatch):
     assert len(notes) == 1 and "TEST" in notes[0]
 
 
-def test_build_tracking_falls_back_to_recommendation_price(make_row, monkeypatch):
+def test_build_tracking_missing_price_does_not_invent_zero_return(make_row, monkeypatch):
     row = make_row()
     monkeypatch.setattr(
         data_fetcher, "fetch_price_stats",
         lambda ticker: {"price": None, "return_1m": None,
                         "return_3m": None, "return_6m": None})
-    tracking, _ = main.build_tracking([row])
-    assert tracking[0]["price"] == 80.0
-    assert tracking[0]["return_pct"] == 0.0
+    tracking, notes = main.build_tracking([row])
+    assert tracking[0]["price"] == "n/a"
+    assert tracking[0]["return_pct"] is None
+    assert notes
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +325,37 @@ def test_finalize_daily_unknown_ticker_is_skipped(tmp_config, make_row, capsys,
     assert "skipping NOPE" in out
     row = storage.rows_for_date(date)[0]
     assert row["Moat Impairment Verdict"] == "Pass - Temporary"
+
+
+def test_finalize_cannot_upgrade_incomplete_data_to_pass(tmp_config, make_row, monkeypatch):
+    date = main._today()
+    storage.append_csv([make_row(**{"Date": date, "Data Warnings": "currency mismatch"})])
+    _seed_analysis(tmp_config, date)
+    path = tmp_config.ANALYSIS_DIR / f"daily-{date}.json"
+    analysis = json.loads(path.read_text())
+    analysis["tickers"][0]["verdict"] = "Pass - Temporary"
+    path.write_text(json.dumps(analysis))
+    monkeypatch.setattr(main.discord_notifier, "send_daily_summary", lambda rows: False)
+    assert main.run_finalize(_args(mode="finalize", date=date)) == 0
+    row = storage.rows_for_date(date)[0]
+    assert row["Moat Impairment Verdict"] == "Watch"
+    assert row["Strategic Action"] == "Wait for Next Earnings"
+    assert row["Data Warnings"] == "currency mismatch"
+
+
+def test_weekly_portfolio_uses_recorded_shares_and_labels_partial_scope(tmp_config, make_row, monkeypatch):
+    tmp_config.LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp_config.LEDGER_PATH.write_text("## 2026-09-01 — BUY TEST\nShares: 2\nPrice: 10 USD\n")
+    storage.append_csv([make_row(**{"Date": main._today()})])
+    monkeypatch.setattr(data_fetcher, "fetch_price_stats", lambda ticker: {
+        "price": 85.0, "return_1m": None, "return_3m": None, "return_6m": None})
+    assert main.run_weekly(_args(mode="weekly")) == 0
+    payload = json.loads((tmp_config.PENDING_DIR / f"weekly-{main._week_label()}.json").read_text())
+    holding = payload["portfolio"]["holdings"][0]
+    assert holding["market_value_usd"] == 170.0  # current price, not $20 purchase cost
+    assert holding["weight_of_priced_holdings_pct"] == 100
+    assert holding["price_source"] == "weekly_price_fetch"
+    assert "cash" in payload["portfolio"]["scope"]
 
 
 def test_finalize_daily_missing_pending_file_fails(tmp_config):

@@ -72,14 +72,14 @@ def _pick_embed(pick: dict, rank: int) -> dict:
     row, n = pick["row"], pick["narrative"]
     description = (
         f"🏰 **ทำไมป้อมปราการยังแข็งแกร่ง**\n{_trunc(n['why_moat_intact'], 800)}\n\n"
-        f"📉 **ตลาดกำลัง Overreact อย่างไร**\n{_trunc(n['market_overreaction'], 500)}\n\n"
-        f"🎯 **แผนแบ่งไม้เข้าซื้อ**\n{_trunc(n['tranche_strategy'], 600)}"
+        f"📉 **เหตุผลของราคาและข้อโต้แย้ง**\n{_trunc(n['market_overreaction'], 500)}\n\n"
+        f"🎯 **เงื่อนไขก่อนแบ่งไม้**\n{_trunc(n['tranche_strategy'], 600)}"
     )
     fields = [
         {"name": "Verdict", "value": _trunc(row.get("Moat Impairment Verdict", ""), 100), "inline": True},
         {"name": "แผน", "value": _trunc(row.get("Strategic Action", ""), 100), "inline": True},
         {"name": "เพดานพอร์ต", "value": f"{_trunc(row.get('Suggested Position Cap (%)', ''), 20)}%", "inline": True},
-        {"name": "ราคา vs FV", "value": (
+        {"name": "ราคา vs proxy (ยังไม่ใช่ MoS)", "value": (
             f"${_trunc(row.get('Market Price ($)'), 30)} vs "
             f"${_trunc(row.get('Fair Value ($)'), 30)} "
             f"(ส่วนลด {_trunc(row.get('Discount (%)'), 20)}%)"
@@ -220,7 +220,11 @@ def build_daily_message(rows: list[dict]) -> tuple[str, list[dict]]:
                   if (d := _cell_float(r, "Discount (%)")) is not None
                   and d < config.MIN_DISCOUNT_FOR_BUY]
 
+    warning_rows = [r for r in rows if r.get("Data Warnings")]
     lines = [f"🌷 **จาก Watch list — Daily {date}** ค่ะ"]
+    if warning_rows:
+        lines.append("⚠ ข้อมูลต้องตรวจเพิ่ม: " + ", ".join(r["Ticker"] for r in warning_rows))
+        lines.append(_trunc(warning_rows[0]["Data Warnings"], 220))
     if interesting:
         lines.append(f"สแกนครบ {len(rows)} ตัว วันนี้มีน่าสนใจ {len(interesting)} ตัวค่ะ ✨")
     else:
@@ -243,7 +247,7 @@ def build_daily_message(rows: list[dict]) -> tuple[str, list[dict]]:
             else f"{r.get('Ticker')}"
             for r in overpriced
         )
-        lines.append(f"🧡 แพงกว่ามูลค่าแบบเงียบ ๆ: {names}")
+        lines.append(f"🧡 ส่วนลดจาก proxy ต่ำกว่าเกณฑ์ศึกษาเพิ่ม: {names}")
     lines.append(f"-# {DISCLAIMER}")
 
     embeds = []
@@ -254,12 +258,12 @@ def build_daily_message(rows: list[dict]) -> tuple[str, list[dict]]:
             "description": _trunc(row.get("Deep-Dive", ""), 900),
             "color": _verdict_color(row.get("Moat Impairment Verdict", "")),
             "fields": [
-                {"name": "ราคา vs FV", "value": (
+                {"name": "ราคา vs valuation proxy", "value": (
                     f"${_trunc(row.get('Market Price ($)'), 20)} vs "
                     f"${_trunc(row.get('Fair Value ($)'), 20)}"
                 ), "inline": True},
-                {"name": "MoS (ส่วนลด)", "value": _trunc(
-                    f"{discount:.1%}" if discount is not None else "n/a", 40), "inline": True},
+                {"name": "ส่วนต่างจาก proxy (ไม่ใช่ MoS)", "value": _trunc(
+                    f"{discount:.1f}%" if discount is not None else "n/a", 40), "inline": True},
                 {"name": "แผน", "value": _trunc(row.get("Strategic Action", ""), 60), "inline": True},
                 {"name": "📈 ดูกราฟ", "value": _trunc(
                     chart_links_md(row.get("Ticker", "")), _MAX_FIELD_VALUE), "inline": False},

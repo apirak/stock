@@ -12,6 +12,7 @@ the Markdown reports are for reading in an editor / Obsidian.
 from __future__ import annotations
 
 import csv
+import math
 from datetime import datetime, timedelta, timezone
 
 import config
@@ -26,8 +27,22 @@ from data_fetcher import chart_links_md, chart_urls
 def append_csv(rows: list[dict]) -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     exists = config.CSV_LOG_PATH.exists()
+    columns = list(COLUMNS)
+    if exists:
+        with config.CSV_LOG_PATH.open(newline="", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            old_columns = reader.fieldnames or []
+            columns += [c for c in old_columns if c not in columns]
+            if old_columns != columns:
+                old_rows = list(reader)
+                tmp = config.CSV_LOG_PATH.with_suffix(".tmp")
+                with tmp.open("w", newline="", encoding="utf-8") as out:
+                    writer = csv.DictWriter(out, fieldnames=columns)
+                    writer.writeheader()
+                    writer.writerows(old_rows)
+                tmp.replace(config.CSV_LOG_PATH)
     with config.CSV_LOG_PATH.open("a", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=COLUMNS, extrasaction="ignore")
+        writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
         if not exists:
             writer.writeheader()
         writer.writerows(rows)
@@ -43,7 +58,8 @@ def read_csv() -> list[dict]:
 def to_float(value) -> float | None:
     try:
         text = str(value).strip().replace("%", "")
-        return float(text) if text not in ("", "None") else None
+        number = float(text) if text not in ("", "None") else None
+        return number if number is not None and math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
 
@@ -102,7 +118,8 @@ def update_rows_for_date(date: str, updates: dict[str, dict]) -> int:
     if changed:
         tmp = config.CSV_LOG_PATH.with_suffix(".tmp")
         with tmp.open("w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=COLUMNS)
+            columns = list(COLUMNS) + [c for c in rows[0] if c not in COLUMNS]
+            writer = csv.DictWriter(fh, fieldnames=columns)
             writer.writeheader()
             writer.writerows(rows)
         tmp.replace(config.CSV_LOG_PATH)
@@ -143,9 +160,18 @@ def _daily_section(row: dict) -> list[str]:
         f"**Action:** {row.get('Strategic Action')} · "
         f"**Position cap:** {row.get('Suggested Position Cap (%)')}%",
         "",
+        f"**Valuation:** {row.get('Valuation Status') or 'Unknown'} · "
+        f"**Portfolio fit:** {row.get('Portfolio Fit') or 'Unverified'}",
+        f"**Analysis:** {row.get('Analysis Status') or 'Unknown'}",
+        f"**Source:** {row.get('Valuation Source') or 'Unknown'} (proxy, not independently verified intrinsic value)",
+        f"**Annual financial period:** {row.get('Financial Period') or 'Unknown'} · "
+        f"**Latest quarter:** {row.get('Quarterly Period') or 'Unknown'} · "
+        f"**News feed:** {row.get('News Status') or 'Unknown'}",
+        f"**⚠ Data warnings:** {row.get('Data Warnings') or 'None reported; primary-source verification still required'}",
+        "",
         "| Metric | Value |",
         "|---|---|",
-        f"| Price vs Fair Value | ${row.get('Market Price ($)')} vs "
+        f"| Price vs valuation proxy | ${row.get('Market Price ($)')} vs "
         f"${row.get('Fair Value ($)')} ({row.get('Discount (%)')}% discount) |",
         f"| Gross / Operating Margin | {row.get('Gross Margin (%)')}% / "
         f"{row.get('Operating Margin (%)')}% |",
@@ -221,7 +247,8 @@ def write_weekly_report(data: dict) -> object:
 
     lines = [f"# 🌷 Falling Angle Weekly Digest — {data['date_str']}", ""]
 
-    lines += ["## ส่วนที่ 1 — Fallen Angels ประจำสัปดาห์", ""]
+    lines += ["## ส่วนที่ 1 — หุ้นที่ควรศึกษาเพิ่มประจำสัปดาห์", "",
+              "_อันดับคือความสำคัญในการวิจัย ไม่ใช่อันดับผลตอบแทนหรือคำแนะนำซื้อ_", ""]
     if not data["picks"]:
         lines += ["_สัปดาห์นี้ไม่มีหุ้นผ่าน Moat Impairment screen — การรอคอยก็เป็น position หนึ่ง_", ""]
     for i, pick in enumerate(data["picks"], start=1):
@@ -232,16 +259,21 @@ def write_weekly_report(data: dict) -> object:
             f"**Verdict:** {row.get('Moat Impairment Verdict')} · "
             f"**แผน:** {row.get('Strategic Action')} · "
             f"**เพดานพอร์ต:** {row.get('Suggested Position Cap (%)')}% · "
-            f"**ราคา:** ${row.get('Market Price ($)')} vs FV ${row.get('Fair Value ($)')} "
+            f"**ราคา:** ${row.get('Market Price ($)')} vs proxy ${row.get('Fair Value ($)')} "
             f"(ส่วนลด {row.get('Discount (%)')}%)",
+            "",
+            f"**Valuation:** {row.get('Valuation Status') or 'Unknown'} · "
+            f"**Portfolio fit:** {row.get('Portfolio Fit') or 'Unverified'} · "
+            f"**Annual period:** {row.get('Financial Period') or 'Unknown'} · "
+            f"**Latest quarter:** {row.get('Quarterly Period') or 'Unknown'}",
             "",
             f"**📈 ดูกราฟ:** {chart_links_md(row.get('Ticker', ''))}",
             "",
             f"**🏰 ทำไมป้อมปราการยังแข็งแกร่ง:** {n['why_moat_intact']}",
             "",
-            f"**📉 ตลาดกำลัง overreact อย่างไร:** {n['market_overreaction']}",
+            f"**📉 เหตุผลของราคาและข้อโต้แย้ง:** {n['market_overreaction']}",
             "",
-            f"**🎯 แผนแบ่งไม้เข้าซื้อ:** {n['tranche_strategy']}",
+            f"**🎯 เงื่อนไขก่อนแบ่งไม้:** {n['tranche_strategy']}",
             "",
             "**🚪 จุดยอมแพ้ (Invalidation Criteria) — เจอเมื่อไหร่ต้องตัด:**",
             "\n".join(f"- {c}" for c in n["invalidation_criteria"]),

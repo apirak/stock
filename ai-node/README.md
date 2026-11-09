@@ -1,10 +1,12 @@
 # 🤖 Automation Prompts — Falling Angle Tracker (reference)
 
-ไฟล์นี้คือ **สำเนา prompt ฉบับปัจจุบัน** ของ ZCode Automations ทั้งสามตัว
+ไฟล์ในโฟลเดอร์นี้คือ **ต้นฉบับ prompt ใน repository** ของ ZCode Automations ทั้งสามตัว
 ใช้เป็นต้นฉบับเมื่อต้อง (1) ย้าย automation ไป session ใหม่ (2) สร้างซ้ำหลังลบ (3) ตรวจว่าของจริงตรงกับ reference หรือไม่
 
 > **กติกาการ sync:** ไฟล์ในโฟลเดอร์นี้ ↔ automation ใน ZCode ต้องตรงกันเสมอ
 > แก้ฝั่งไหนต้องอัปเดตอีกฝั่ง (แก้ใน chat ที่เป็นเจ้าของ automation ด้วย CronUpdate หรือแจ้งผู้ใช้แก้ใน UI)
+
+ฉบับ 2026-10-08: Daily เปรียบเทียบ thesis เดิมและติดตามเฉพาะสิ่งที่เปลี่ยน; Weekly เป็นรายชื่อศึกษาเพิ่มที่ผ่านด่านข้อมูล พร้อมตรวจ primary sources, independent valuation และ portfolio fit. โค้ดไม่เปิดไม้จาก analyst proxy อัตโนมัติ. หลังเปลี่ยนไฟล์ ให้แทน prompt ใน Daily Stock / Weekly Stock เดิมและตรวจข้อความที่บันทึก; อย่าสร้าง automation ซ้ำ. ไฟล์ต้นฉบับไม่ได้ยืนยันว่า scheduler ใช้ฉบับนี้แล้ว
 
 ## ตาราง automations ปัจจุบัน
 

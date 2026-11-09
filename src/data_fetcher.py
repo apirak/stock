@@ -12,6 +12,7 @@ All three are proxies — the discount% should be sanity-checked, not trusted bl
 from __future__ import annotations
 
 import datetime as dt
+import math
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
@@ -50,6 +51,12 @@ class FinancialSnapshot:
     fair_value_source: str = ""
     market_cap: float | None = None
     beta: float | None = None
+    financial_period: str = ""
+    quote_currency: str = ""
+    financial_currency: str = ""
+    quarterly_periods: list[str] = field(default_factory=list)
+    quarterly_gross_margins: list[float | None] = field(default_factory=list)
+    quarterly_operating_margins: list[float | None] = field(default_factory=list)
 
     gross_margin: float | None = None            # fractions, e.g. 0.62
     operating_margin: float | None = None
@@ -69,6 +76,8 @@ class FinancialSnapshot:
     return_6m: float | None = None
 
     news_headlines: list[str] = field(default_factory=list)
+    news_items: list[dict] = field(default_factory=list)
+    news_status: str = "unknown"
     warnings: list[str] = field(default_factory=list)
     as_of: str = field(
         default_factory=lambda: dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
@@ -96,6 +105,13 @@ class FinancialSnapshot:
             "price": self.price,
             "fair_value": self.fair_value,
             "fair_value_source": self.fair_value_source,
+            "financial_period": self.financial_period,
+            "margin_history_frequency": "annual",
+            "quote_currency": self.quote_currency,
+            "financial_currency": self.financial_currency,
+            "quarterly_periods": self.quarterly_periods,
+            "quarterly_gross_margin_pct": [pct(x) for x in self.quarterly_gross_margins],
+            "quarterly_operating_margin_pct": [pct(x) for x in self.quarterly_operating_margins],
             "discount_pct": pct(self.discount),
             "gross_margin_pct": pct(self.gross_margin),
             "operating_margin_pct": pct(self.operating_margin),
@@ -110,6 +126,8 @@ class FinancialSnapshot:
             "return_1m_pct": pct(self.return_1m),
             "return_6m_pct": pct(self.return_6m),
             "recent_news_headlines": self.news_headlines,
+            "news_items": self.news_items,
+            "news_status": self.news_status,
             "data_warnings": self.warnings,
         }
 
@@ -122,7 +140,8 @@ def _num(value) -> float | None:
     try:
         if value is None or pd.isna(value):
             return None
-        return float(value)
+        number = float(value)
+        return number if math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
 
@@ -144,7 +163,7 @@ def _ratio_series(df: pd.DataFrame | None, numerator: str, denominator: str,
     num = pd.to_numeric(df.loc[numerator], errors="coerce")
     den = pd.to_numeric(df.loc[denominator], errors="coerce")
     for n, d in zip(num, den):
-        if pd.isna(n) or pd.isna(d) or d == 0:
+        if _num(n) is None or _num(d) is None or d == 0:
             continue
         out.append(float(n) / float(d))
         if len(out) >= limit:
@@ -162,23 +181,30 @@ def _last_close(ticker: yf.Ticker) -> float | None:
     return None
 
 
-def _news_titles(ticker: yf.Ticker, limit: int = 6) -> list[str]:
+def _fetch_news(ticker: yf.Ticker, limit: int = 6) -> tuple[list[dict], str]:
     try:
         try:
             items = ticker.get_news(count=limit) or []
         except Exception:
-            items = getattr(ticker, "news", []) or []
-        titles: list[str] = []
+            fallback = getattr(ticker, "news", None)
+            if fallback is None:
+                return [], "failed"
+            items = fallback
+        news: list[dict] = []
         for item in items:
             if not isinstance(item, dict):
                 continue
             content = item.get("content") or {}
             title = content.get("title") or item.get("title")
             if title:
-                titles.append(str(title))
-        return titles[:limit]
+                news.append({
+                    "title": str(title),
+                    "url": (content.get("canonicalUrl") or {}).get("url") or item.get("link", ""),
+                    "published_at": content.get("pubDate") or item.get("providerPublishTime", ""),
+                })
+        return news[:limit], "ok" if news else "empty"
     except Exception:
-        return []
+        return [], "failed"
 
 
 def _price_history(ticker: yf.Ticker) -> pd.Series | None:
@@ -226,6 +252,8 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
     )
     snap.market_cap = _num(info.get("marketCap"))
     snap.beta = _num(info.get("beta"))
+    snap.quote_currency = str(info.get("currency") or "")
+    snap.financial_currency = str(info.get("financialCurrency") or "")
 
     # --- Fair value (proxy hierarchy) -----------------------------------
     if fair_value_override:
@@ -258,6 +286,30 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
         cashflow = None
     if income is None or (hasattr(income, "empty") and income.empty):
         snap.warnings.append("income statement unavailable")
+    else:
+        snap.financial_period = str(income.columns[0])[:10]
+    for name, statement in (("balance sheet", balance), ("cashflow", cashflow)):
+        if statement is None or statement.empty:
+            snap.warnings.append(f"{name} unavailable")
+        elif str(statement.columns[0])[:10] != snap.financial_period:
+            snap.warnings.append(f"{name} period differs from annual income statement")
+    try:
+        quarterly = t.quarterly_income_stmt
+        if quarterly is not None and not quarterly.empty:
+            # Keep the period beside each ratio; missing values must not shift dates.
+            quarterly = quarterly.iloc[:, :4]
+            snap.quarterly_periods = [str(c)[:10] for c in quarterly.columns]
+            for column in quarterly.columns:
+                quarter = quarterly[[column]]
+                revenue_q = _latest(quarter, "Total Revenue")
+                gross_q = _latest(quarter, "Gross Profit")
+                op_q = _latest(quarter, "Operating Income")
+                snap.quarterly_gross_margins.append(gross_q / revenue_q if revenue_q and gross_q is not None else None)
+                snap.quarterly_operating_margins.append(op_q / revenue_q if revenue_q and op_q is not None else None)
+    except Exception:
+        pass
+    if not snap.quarterly_periods:
+        snap.warnings.append("quarterly income statement unavailable; annual trend is not a recent-quarter trend")
 
     revenue = _latest(income, "Total Revenue")
     gross_profit = _latest(income, "Gross Profit")
@@ -282,16 +334,13 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
             tax_rate = implied
 
     # --- ROIC = NOPAT / Invested Capital ----------------------------------
-    equity = (
-        _latest(balance, "Stockholders Equity")
-        or _latest(balance, "Total Equity Gross Minority Interest")
-        or _num(info.get("stockholdersEquity"))
-    )
-    total_debt = (
-        _latest(balance, "Total Debt")
-        or _num(info.get("totalDebt"))
-    )
+    equity = _latest(balance, "Stockholders Equity")
+    if equity is None:
+        equity = _latest(balance, "Total Equity Gross Minority Interest")
+    total_debt = _latest(balance, "Total Debt")
     cash = _latest(balance, "Cash And Cash Equivalents")
+    if cash is None:
+        snap.warnings.append("cash balance unavailable")
     short_term_inv = _latest(balance, "Other Short Term Investments") or 0.0
     if operating_income and total_debt is not None and equity is not None:
         invested_capital = total_debt + equity - (cash or 0.0) - short_term_inv
@@ -310,13 +359,16 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
     equity_value = snap.market_cap or (
         snap.price * _num(info.get("sharesOutstanding")) if snap.price and info.get("sharesOutstanding") else None
     )
-    if equity_value and total_debt is not None and (equity_value + total_debt) > 0:
+    currency_ok = bool(snap.quote_currency and snap.quote_currency == snap.financial_currency)
+    if not currency_ok:
+        snap.warnings.append("quote/financial currency unknown or mismatched; WACC and FCF yield unavailable")
+    if currency_ok and equity_value and total_debt is not None and (equity_value + total_debt) > 0:
         we = equity_value / (equity_value + total_debt)
         wd = 1 - we
         snap.wacc = we * cost_of_equity + wd * cost_of_debt * (1 - tax_rate)
 
     # --- Leverage & coverage ------------------------------------------------
-    ebitda = _num(info.get("ebitda")) or _latest(income, "EBITDA")
+    ebitda = _latest(income, "EBITDA")
     if total_debt is not None and ebitda:
         net_debt = total_debt - (cash or 0.0) - short_term_inv
         snap.net_debt_ebitda = net_debt / ebitda if ebitda > 0 else None
@@ -326,18 +378,20 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
         snap.interest_coverage = operating_income / interest_expense if interest_expense > 0 else None
         if interest_expense <= 0:
             snap.interest_expense_negligible = True
-    elif interest_expense is None or interest_expense <= 0:
+    elif interest_expense is not None and interest_expense <= 0:
         snap.interest_expense_negligible = True
 
     # --- Free cash flow -------------------------------------------------------
-    ocf = _latest(cashflow, "Operating Cash Flow") or _num(info.get("operatingCashflow"))
+    ocf = _latest(cashflow, "Operating Cash Flow")
     capex = _latest(cashflow, "Capital Expenditure")  # yfinance reports it negative
-    if ocf is not None:
+    if ocf is not None and capex is not None:
         snap.fcf = ocf + capex if (capex is not None and capex < 0) else (
             ocf - capex if capex is not None else ocf
         )
-        if snap.market_cap:
+        if currency_ok and snap.market_cap:
             snap.fcf_yield = snap.fcf / snap.market_cap
+    else:
+        snap.warnings.append("operating cashflow or capital expenditure unavailable; FCF unknown")
 
     # --- Price history returns -------------------------------------------------
     closes = _price_history(t)
@@ -346,7 +400,12 @@ def fetch_snapshot(ticker: str, fair_value_override: float | None = None,
     snap.return_6m = _return_over(closes, TRADING_DAYS["6m"])
 
     if include_news:
-        snap.news_headlines = _news_titles(t)
+        snap.news_items, snap.news_status = _fetch_news(t)
+        snap.news_headlines = [item["title"] for item in snap.news_items]
+        if snap.news_status != "ok":
+            snap.warnings.append(f"news feed {snap.news_status}; material-event coverage unverified")
+    else:
+        snap.news_status = "skipped"
 
     return snap
 
